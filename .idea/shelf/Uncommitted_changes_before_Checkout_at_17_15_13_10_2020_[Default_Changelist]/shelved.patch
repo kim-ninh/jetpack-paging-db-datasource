@@ -1,0 +1,17 @@
+Index: ../PagingWithNetworkSample/benchmark/build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>apply plugin: 'com.android.library'\n\napply plugin: 'kotlin-android'\n\napply plugin: 'kotlin-android-extensions'\n\napply plugin: 'kotlin-kapt'\n\napply plugin: 'androidx.benchmark'\n\nandroid {\n    compileSdkVersion build_versions.compile_sdk\n    buildToolsVersion build_versions.build_tools\n    defaultConfig {\n        multiDexEnabled true\n        minSdkVersion build_versions.min_sdk\n        targetSdkVersion build_versions.target_sdk\n        versionCode 1\n        versionName \"1.0\"\n\n        // Set this argument to capture profiling information, instead of measuring performance.\n        // Can be one of:\n        //   * None\n        //   * Sampled\n        //   * Method\n        // See full descriptions of available options at: d.android.com/benchmark#profiling\n        testInstrumentationRunnerArgument 'androidx.benchmark.profiling.mode', 'none'\n    }\n\n    testBuildType = \"release\"\n\n    buildTypes {\n        release {\n            isDefault = true\n            minifyEnabled true\n            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'benchmark-proguard-rules.pro'\n            signingConfig signingConfigs.debug\n        }\n    }\n\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }\n\n\n    kotlinOptions {\n        jvmTarget = \"1.8\"\n        freeCompilerArgs += [\"-Xopt-in=kotlin.RequiresOptIn\"]\n    }\n}\n\ndependencies {\n    implementation fileTree(dir: 'libs', include: ['*.jar'])\n    implementation project(path: ':lib')\n\n    implementation deps.app_compat\n    implementation deps.paging_runtime\n\n    androidTestImplementation deps.atsl.ext_junit\n    androidTestImplementation deps.atsl.runner\n    androidTestImplementation deps.atsl.rules\n    androidTestImplementation deps.arch_core.testing\n    androidTestImplementation deps.benchmark\n    androidTestImplementation deps.junit\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/benchmark/build.gradle	(revision f4fa4f77e6f5dc6d63f2e7b46124e46edff1ae97)
++++ ../PagingWithNetworkSample/benchmark/build.gradle	(date 1600749499000)
+@@ -25,6 +25,7 @@
+         //   * Method
+         // See full descriptions of available options at: d.android.com/benchmark#profiling
+         testInstrumentationRunnerArgument 'androidx.benchmark.profiling.mode', 'none'
++        testInstrumentationRunnerArgument 'androidx.benchmark.suppressErrors', 'EMULATOR,LOW-BATTERY'
+     }
+ 
+     testBuildType = "release"

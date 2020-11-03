@@ -1,0 +1,1847 @@
+Index: ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/vo/SubredditRemoteKey.kt
+===================================================================
+--- ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/vo/SubredditRemoteKey.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/vo/SubredditRemoteKey.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
+@@ -1,29 +0,0 @@
+-/*
+- * Copyright (C) 2017 The Android Open Source Project
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package com.android.example.paging.pagingwithnetwork.reddit.vo
+-
+-import androidx.room.ColumnInfo
+-import androidx.room.Entity
+-import androidx.room.PrimaryKey
+-
+-@Entity(tableName = "remote_keys")
+-data class SubredditRemoteKey(
+-    @PrimaryKey
+-    @ColumnInfo(collate = ColumnInfo.NOCASE)
+-    val subreddit: String, // technically mutable but fine for a demo
+-    val nextPageKey: String?
+-)
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/SubredditRemoteKeyDao.kt
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/SubredditRemoteKeyDao.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/SubredditRemoteKeyDao.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
+@@ -1,35 +0,0 @@
+-/*
+- * Copyright (C) 2017 The Android Open Source Project
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package com.android.example.paging.pagingwithnetwork.reddit.db
+-
+-import androidx.room.Dao
+-import androidx.room.Insert
+-import androidx.room.OnConflictStrategy
+-import androidx.room.Query
+-import com.android.example.paging.pagingwithnetwork.reddit.vo.SubredditRemoteKey
+-
+-@Dao
+-interface SubredditRemoteKeyDao {
+-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+-    suspend fun insert(keys: SubredditRemoteKey)
+-
+-    @Query("SELECT * FROM remote_keys WHERE subreddit = :subreddit")
+-    suspend fun remoteKeyByPost(subreddit: String): SubredditRemoteKey
+-
+-    @Query("DELETE FROM remote_keys WHERE subreddit = :subreddit")
+-    suspend fun deleteBySubreddit(subreddit: String)
+-}
+\ No newline at end of file
+Index: ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/PostsLoadStateAdapter.kt
+===================================================================
+--- ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/PostsLoadStateAdapter.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/PostsLoadStateAdapter.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
+@@ -1,20 +0,0 @@
+-package com.android.example.paging.pagingwithnetwork.reddit.ui
+-
+-import android.view.ViewGroup
+-import androidx.paging.LoadState
+-import androidx.paging.LoadStateAdapter
+-
+-class PostsLoadStateAdapter(
+-        private val adapter: PostsAdapter
+-) : LoadStateAdapter<NetworkStateItemViewHolder>() {
+-    override fun onBindViewHolder(holder: NetworkStateItemViewHolder, loadState: LoadState) {
+-        holder.bindTo(loadState)
+-    }
+-
+-    override fun onCreateViewHolder(
+-            parent: ViewGroup,
+-            loadState: LoadState
+-    ): NetworkStateItemViewHolder {
+-        return NetworkStateItemViewHolder(parent) { adapter.retry() }
+-    }
+-}
+\ No newline at end of file
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/PageKeyedSubredditPagingSource.kt
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/PageKeyedSubredditPagingSource.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/PageKeyedSubredditPagingSource.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
+@@ -1,58 +0,0 @@
+-/*
+- * Copyright (C) 2017 The Android Open Source Project
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byPage
+-
+-import androidx.paging.PagingSource
+-import androidx.paging.PagingSource.LoadParams.Append
+-import androidx.paging.PagingSource.LoadParams.Prepend
+-import androidx.paging.PagingSource.LoadResult.Page
+-import com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi
+-import com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byItem.ItemKeyedSubredditPagingSource
+-import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
+-import retrofit2.HttpException
+-import java.io.IOException
+-
+-/**
+- * A [PagingSource] that uses the before/after keys returned in page requests.
+- *
+- * @see ItemKeyedSubredditPagingSource
+- */
+-class PageKeyedSubredditPagingSource(
+-    private val redditApi: RedditApi,
+-    private val subredditName: String
+-) : PagingSource<String, RedditPost>() {
+-    override suspend fun load(params: LoadParams<String>): LoadResult<String, RedditPost> {
+-        return try {
+-            val data = redditApi.getTop(
+-                subreddit = subredditName,
+-                after = if (params is Append) params.key else null,
+-                before = if (params is Prepend) params.key else null,
+-                limit = params.loadSize
+-            ).data
+-
+-            Page(
+-                data = data.children.map { it.data },
+-                prevKey = data.before,
+-                nextKey = data.after
+-            )
+-        } catch (e: IOException) {
+-            LoadResult.Error(e)
+-        } catch (e: HttpException) {
+-            LoadResult.Error(e)
+-        }
+-    }
+-}
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inDb/PageKeyedRemoteMediator.kt
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inDb/PageKeyedRemoteMediator.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inDb/PageKeyedRemoteMediator.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
+@@ -1,84 +0,0 @@
+-package com.android.example.paging.pagingwithnetwork.reddit.repository.inDb
+-
+-import androidx.paging.ExperimentalPagingApi
+-import androidx.paging.LoadType
+-import androidx.paging.LoadType.*
+-import androidx.paging.PagingState
+-import androidx.paging.RemoteMediator
+-import androidx.room.withTransaction
+-import com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi
+-import com.android.example.paging.pagingwithnetwork.reddit.db.RedditDb
+-import com.android.example.paging.pagingwithnetwork.reddit.db.RedditPostDao
+-import com.android.example.paging.pagingwithnetwork.reddit.db.SubredditRemoteKeyDao
+-import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
+-import com.android.example.paging.pagingwithnetwork.reddit.vo.SubredditRemoteKey
+-import retrofit2.HttpException
+-import java.io.IOException
+-
+-@OptIn(ExperimentalPagingApi::class)
+-class PageKeyedRemoteMediator(
+-    private val db: RedditDb,
+-    private val redditApi: RedditApi,
+-    private val subredditName: String
+-) : RemoteMediator<Int, RedditPost>() {
+-    private val postDao: RedditPostDao = db.posts()
+-    private val remoteKeyDao: SubredditRemoteKeyDao = db.remoteKeys()
+-
+-    override suspend fun load(
+-        loadType: LoadType,
+-        state: PagingState<Int, RedditPost>
+-    ): MediatorResult {
+-        try {
+-            // Get the closest item from PagingState that we want to load data around.
+-            val loadKey = when (loadType) {
+-                REFRESH -> null
+-                PREPEND -> return MediatorResult.Success(endOfPaginationReached = true)
+-                APPEND -> {
+-                    // Query DB for SubredditRemoteKey for the subreddit.
+-                    // SubredditRemoteKey is a wrapper object we use to keep track of page keys we
+-                    // receive from the Reddit API to fetch the next or previous page.
+-                    val remoteKey = db.withTransaction {
+-                        remoteKeyDao.remoteKeyByPost(subredditName)
+-                    }
+-
+-                    // We must explicitly check if the page key is null when appending, since the
+-                    // Reddit API informs the end of the list by returning null for page key, but
+-                    // passing a null key to Reddit API will fetch the initial page.
+-                    if (remoteKey.nextPageKey == null) {
+-                        return MediatorResult.Success(endOfPaginationReached = true)
+-                    }
+-
+-                    remoteKey.nextPageKey
+-                }
+-            }
+-
+-            val data = redditApi.getTop(
+-                subreddit = subredditName,
+-                after = loadKey,
+-                before = null,
+-                limit = when (loadType) {
+-                    REFRESH -> state.config.initialLoadSize
+-                    else -> state.config.pageSize
+-                }
+-            ).data
+-
+-            val items = data.children.map { it.data }
+-
+-            db.withTransaction {
+-                if (loadType == REFRESH) {
+-                    postDao.deleteBySubreddit(subredditName)
+-                    remoteKeyDao.deleteBySubreddit(subredditName)
+-                }
+-
+-                remoteKeyDao.insert(SubredditRemoteKey(subredditName, data.after))
+-                postDao.insertAll(items)
+-            }
+-
+-            return MediatorResult.Success(endOfPaginationReached = items.isEmpty())
+-        } catch (e: IOException) {
+-            return MediatorResult.Error(e)
+-        } catch (e: HttpException) {
+-            return MediatorResult.Error(e)
+-        }
+-    }
+-}
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/ItemKeyedSubredditPagingSource.kt
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/ItemKeyedSubredditPagingSource.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/ItemKeyedSubredditPagingSource.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
+@@ -1,75 +0,0 @@
+-/*
+- * Copyright (C) 2017 The Android Open Source Project
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byItem
+-
+-import androidx.paging.ExperimentalPagingApi
+-import androidx.paging.PagingSource
+-import androidx.paging.PagingSource.LoadParams.Append
+-import androidx.paging.PagingSource.LoadParams.Prepend
+-import androidx.paging.PagingSource.LoadResult.Page
+-import androidx.paging.PagingState
+-import com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi
+-import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
+-import retrofit2.HttpException
+-import java.io.IOException
+-
+-/**
+- * A [PagingSource] that uses the "name" field of posts as the key for next/prev pages.
+- *
+- * Note that this is not the correct consumption of the Reddit API but rather shown here as an
+- * alternative implementation which might be more suitable for your backend.
+- *
+- * @see [com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byPage.PageKeyedSubredditPagingSource]
+- */
+-class ItemKeyedSubredditPagingSource(
+-        private val redditApi: RedditApi,
+-        private val subredditName: String
+-) : PagingSource<String, RedditPost>() {
+-
+-    override suspend fun load(params: LoadParams<String>): LoadResult<String, RedditPost> {
+-        return try {
+-            val items = redditApi.getTop(
+-                    subreddit = subredditName,
+-                    after = if (params is Append) params.key else null,
+-                    before = if (params is Prepend) params.key else null,
+-                    limit = params.loadSize
+-            ).data.children.map { it.data }
+-
+-            Page(
+-                    data = items,
+-                    prevKey = items.firstOrNull()?.name,
+-                    nextKey = items.lastOrNull()?.name
+-            )
+-        } catch (e: IOException) {
+-            LoadResult.Error(e)
+-        } catch (e: HttpException) {
+-            LoadResult.Error(e)
+-        }
+-    }
+-
+-    @OptIn(ExperimentalPagingApi::class)
+-    override fun getRefreshKey(state: PagingState<String, RedditPost>): String? {
+-        /**
+-         * The name field is a unique identifier for post items.
+-         * (no it is not the title of the post :) )
+-         * https://www.reddit.com/dev/api
+-         */
+-        return state.anchorPosition?.let { anchorPosition ->
+-            state.closestItemToPosition(anchorPosition)?.name
+-        }
+-    }
+-}
+Index: ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/NetworkStateItemViewHolder.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.ui\n\nimport android.view.LayoutInflater\nimport android.view.ViewGroup\nimport androidx.core.view.isVisible\nimport androidx.paging.LoadState\nimport androidx.paging.LoadState.Error\nimport androidx.paging.LoadState.Loading\nimport androidx.recyclerview.widget.RecyclerView\nimport com.android.example.lib.R\nimport com.android.example.lib.databinding.NetworkStateItemBinding\n\n/**\n * A View Holder that can display a loading or have click action.\n * It is used to show the network state of paging.\n */\nclass NetworkStateItemViewHolder(\n    parent: ViewGroup,\n    private val retryCallback: () -> Unit\n) : RecyclerView.ViewHolder(\n    LayoutInflater.from(parent.context).inflate(R.layout.network_state_item, parent, false)\n) {\n    private val binding = NetworkStateItemBinding.bind(itemView)\n    private val progressBar = binding.progressBar\n    private val errorMsg = binding.errorMsg\n    private val retry = binding.retryButton\n        .also {\n            it.setOnClickListener { retryCallback() }\n        }\n\n    fun bindTo(loadState: LoadState) {\n        progressBar.isVisible = loadState is Loading\n        retry.isVisible = loadState is Error\n        errorMsg.isVisible = !(loadState as? Error)?.error?.message.isNullOrBlank()\n        errorMsg.text = (loadState as? Error)?.error?.message\n    }\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/NetworkStateItemViewHolder.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/NetworkStateItemViewHolder.kt	(date 1604315706000)
+@@ -16,38 +16,53 @@
+ 
+ package com.android.example.paging.pagingwithnetwork.reddit.ui
+ 
++import androidx.recyclerview.widget.RecyclerView
+ import android.view.LayoutInflater
++import android.view.View
+ import android.view.ViewGroup
+-import androidx.core.view.isVisible
+-import androidx.paging.LoadState
+-import androidx.paging.LoadState.Error
+-import androidx.paging.LoadState.Loading
+-import androidx.recyclerview.widget.RecyclerView
++import android.widget.Button
++import android.widget.ProgressBar
++import android.widget.TextView
++import com.android.example.paging.pagingwithnetwork.reddit.repository.NetworkState
++import com.android.example.paging.pagingwithnetwork.reddit.repository.Status.FAILED
++import com.android.example.paging.pagingwithnetwork.reddit.repository.Status.RUNNING
+ import com.android.example.lib.R
+-import com.android.example.lib.databinding.NetworkStateItemBinding
+ 
+ /**
+  * A View Holder that can display a loading or have click action.
+  * It is used to show the network state of paging.
+  */
+-class NetworkStateItemViewHolder(
+-    parent: ViewGroup,
+-    private val retryCallback: () -> Unit
+-) : RecyclerView.ViewHolder(
+-    LayoutInflater.from(parent.context).inflate(R.layout.network_state_item, parent, false)
+-) {
+-    private val binding = NetworkStateItemBinding.bind(itemView)
+-    private val progressBar = binding.progressBar
+-    private val errorMsg = binding.errorMsg
+-    private val retry = binding.retryButton
+-        .also {
+-            it.setOnClickListener { retryCallback() }
++class NetworkStateItemViewHolder(view: View,
++                                 private val retryCallback: () -> Unit)
++    : RecyclerView.ViewHolder(view) {
++    private val progressBar = view.findViewById<ProgressBar>(R.id.progress_bar)
++    private val retry = view.findViewById<Button>(R.id.retry_button)
++    private val errorMsg = view.findViewById<TextView>(R.id.error_msg)
++    init {
++        retry.setOnClickListener {
++            retryCallback()
++        }
++    }
++    fun bindTo(networkState: NetworkState?) {
++        progressBar.visibility = toVisibility(networkState?.status == RUNNING)
++        retry.visibility = toVisibility(networkState?.status == FAILED)
++        errorMsg.visibility = toVisibility(networkState?.msg != null)
++        errorMsg.text = networkState?.msg
++    }
++
++    companion object {
++        fun create(parent: ViewGroup, retryCallback: () -> Unit): NetworkStateItemViewHolder {
++            val view = LayoutInflater.from(parent.context)
++                    .inflate(R.layout.network_state_item, parent, false)
++            return NetworkStateItemViewHolder(view, retryCallback)
+         }
+ 
+-    fun bindTo(loadState: LoadState) {
+-        progressBar.isVisible = loadState is Loading
+-        retry.isVisible = loadState is Error
+-        errorMsg.isVisible = !(loadState as? Error)?.error?.message.isNullOrBlank()
+-        errorMsg.text = (loadState as? Error)?.error?.message
++        fun toVisibility(constraint : Boolean): Int {
++            return if (constraint) {
++                View.VISIBLE
++            } else {
++                View.GONE
++            }
++        }
+     }
+ }
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/RedditDb.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.db\n\nimport android.content.Context\nimport androidx.room.Database\nimport androidx.room.Room\nimport androidx.room.RoomDatabase\nimport com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost\nimport com.android.example.paging.pagingwithnetwork.reddit.vo.SubredditRemoteKey\n\n/**\n * Database schema used by the DbRedditPostRepository\n */\n@Database(\n    entities = [RedditPost::class, SubredditRemoteKey::class],\n    version = 1,\n    exportSchema = false\n)\nabstract class RedditDb : RoomDatabase() {\n    companion object {\n        fun create(context: Context, useInMemory: Boolean): RedditDb {\n            val databaseBuilder = if (useInMemory) {\n                Room.inMemoryDatabaseBuilder(context, RedditDb::class.java)\n            } else {\n                Room.databaseBuilder(context, RedditDb::class.java, \"reddit.db\")\n            }\n            return databaseBuilder\n                .fallbackToDestructiveMigration()\n                .build()\n        }\n    }\n\n    abstract fun posts(): RedditPostDao\n    abstract fun remoteKeys(): SubredditRemoteKeyDao\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/RedditDb.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/RedditDb.kt	(date 1604315706000)
+@@ -16,35 +16,33 @@
+ 
+ package com.android.example.paging.pagingwithnetwork.reddit.db
+ 
+-import android.content.Context
+ import androidx.room.Database
+ import androidx.room.Room
+ import androidx.room.RoomDatabase
++import android.content.Context
+ import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
+-import com.android.example.paging.pagingwithnetwork.reddit.vo.SubredditRemoteKey
+ 
+ /**
+  * Database schema used by the DbRedditPostRepository
+  */
+ @Database(
+-    entities = [RedditPost::class, SubredditRemoteKey::class],
+-    version = 1,
+-    exportSchema = false
++        entities = [RedditPost::class],
++        version = 1,
++        exportSchema = false
+ )
+ abstract class RedditDb : RoomDatabase() {
+     companion object {
+-        fun create(context: Context, useInMemory: Boolean): RedditDb {
+-            val databaseBuilder = if (useInMemory) {
++        fun create(context: Context, useInMemory : Boolean): RedditDb {
++            val databaseBuilder = if(useInMemory) {
+                 Room.inMemoryDatabaseBuilder(context, RedditDb::class.java)
+             } else {
+                 Room.databaseBuilder(context, RedditDb::class.java, "reddit.db")
+             }
+             return databaseBuilder
+-                .fallbackToDestructiveMigration()
+-                .build()
++                    .fallbackToDestructiveMigration()
++                    .build()
+         }
+     }
+ 
+     abstract fun posts(): RedditPostDao
+-    abstract fun remoteKeys(): SubredditRemoteKeyDao
+ }
+\ No newline at end of file
+Index: ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/RedditPostRepository.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.repository\n\nimport androidx.paging.PagingData\nimport com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost\nimport kotlinx.coroutines.flow.Flow\n\n/**\n * Common interface shared by the different repository implementations.\n * Note: this only exists for sample purposes - typically an app would implement a repo once, either\n * network+db, or network-only\n */\ninterface RedditPostRepository {\n    fun postsOfSubreddit(subReddit: String, pageSize: Int): Flow<PagingData<RedditPost>>\n\n    enum class Type {\n        IN_MEMORY_BY_ITEM,\n        IN_MEMORY_BY_PAGE,\n        DB\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/RedditPostRepository.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/RedditPostRepository.kt	(date 1604315706000)
+@@ -16,9 +16,7 @@
+ 
+ package com.android.example.paging.pagingwithnetwork.reddit.repository
+ 
+-import androidx.paging.PagingData
+ import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
+-import kotlinx.coroutines.flow.Flow
+ 
+ /**
+  * Common interface shared by the different repository implementations.
+@@ -26,7 +24,7 @@
+  * network+db, or network-only
+  */
+ interface RedditPostRepository {
+-    fun postsOfSubreddit(subReddit: String, pageSize: Int): Flow<PagingData<RedditPost>>
++    fun postsOfSubreddit(subReddit: String, pageSize: Int): Listing<RedditPost>
+ 
+     enum class Type {
+         IN_MEMORY_BY_ITEM,
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/api/RedditApi.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.api\n\nimport android.util.Log\nimport com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost\nimport okhttp3.HttpUrl\nimport okhttp3.OkHttpClient\nimport okhttp3.logging.HttpLoggingInterceptor\nimport retrofit2.Retrofit\nimport retrofit2.converter.gson.GsonConverterFactory\nimport retrofit2.http.GET\nimport retrofit2.http.Path\nimport retrofit2.http.Query\n\n/**\n * API communication setup\n */\ninterface RedditApi {\n\n    @GET(\"/r/{subreddit}/hot.json\")\n    suspend fun getTop(\n            @Path(\"subreddit\") subreddit: String,\n            @Query(\"limit\") limit: Int,\n            @Query(\"after\") after: String? = null,\n            @Query(\"before\") before: String? = null\n    ): ListingResponse\n\n    class ListingResponse(val data: ListingData)\n\n    class ListingData(\n            val children: List<RedditChildrenResponse>,\n            val after: String?,\n            val before: String?\n    )\n\n    data class RedditChildrenResponse(val data: RedditPost)\n\n    companion object {\n        private const val BASE_URL = \"https://www.reddit.com/\"\n        fun create(): RedditApi {\n            val logger = HttpLoggingInterceptor(HttpLoggingInterceptor.Logger { Log.d(\"API\", it) })\n            logger.level = HttpLoggingInterceptor.Level.BASIC\n\n            val client = OkHttpClient.Builder()\n                    .addInterceptor(logger)\n                    .build()\n            return Retrofit.Builder()\n                    .baseUrl(HttpUrl.parse(BASE_URL)!!)\n                    .client(client)\n                    .addConverterFactory(GsonConverterFactory.create())\n                    .build()\n                    .create(RedditApi::class.java)\n        }\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/api/RedditApi.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/api/RedditApi.kt	(date 1604315706000)
+@@ -21,6 +21,7 @@
+ import okhttp3.HttpUrl
+ import okhttp3.OkHttpClient
+ import okhttp3.logging.HttpLoggingInterceptor
++import retrofit2.Call
+ import retrofit2.Retrofit
+ import retrofit2.converter.gson.GsonConverterFactory
+ import retrofit2.http.GET
+@@ -31,14 +32,24 @@
+  * API communication setup
+  */
+ interface RedditApi {
++    @GET("/r/{subreddit}/hot.json")
++    fun getTop(
++            @Path("subreddit") subreddit: String,
++            @Query("limit") limit: Int): Call<ListingResponse>
++
++    // for after/before param, either get from RedditDataResponse.after/before,
++    // or pass RedditNewsDataResponse.name (though this is technically incorrect)
++    @GET("/r/{subreddit}/hot.json")
++    fun getTopAfter(
++            @Path("subreddit") subreddit: String,
++            @Query("after") after: String,
++            @Query("limit") limit: Int): Call<ListingResponse>
+ 
+     @GET("/r/{subreddit}/hot.json")
+-    suspend fun getTop(
++    fun getTopBefore(
+             @Path("subreddit") subreddit: String,
+-            @Query("limit") limit: Int,
+-            @Query("after") after: String? = null,
+-            @Query("before") before: String? = null
+-    ): ListingResponse
++            @Query("before") before: String,
++            @Query("limit") limit: Int): Call<ListingResponse>
+ 
+     class ListingResponse(val data: ListingData)
+ 
+@@ -52,15 +63,18 @@
+ 
+     companion object {
+         private const val BASE_URL = "https://www.reddit.com/"
+-        fun create(): RedditApi {
+-            val logger = HttpLoggingInterceptor(HttpLoggingInterceptor.Logger { Log.d("API", it) })
++        fun create(): RedditApi = create(HttpUrl.parse(BASE_URL)!!)
++        fun create(httpUrl: HttpUrl): RedditApi {
++            val logger = HttpLoggingInterceptor(HttpLoggingInterceptor.Logger {
++                Log.d("API", it)
++            })
+             logger.level = HttpLoggingInterceptor.Level.BASIC
+ 
+             val client = OkHttpClient.Builder()
+                     .addInterceptor(logger)
+                     .build()
+             return Retrofit.Builder()
+-                    .baseUrl(HttpUrl.parse(BASE_URL)!!)
++                    .baseUrl(httpUrl)
+                     .client(client)
+                     .addConverterFactory(GsonConverterFactory.create())
+                     .build()
+Index: ../PagingWithNetworkSample/lib/build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>apply plugin: 'com.android.library'\n\napply plugin: 'kotlin-android'\n\napply plugin: 'kotlin-android-extensions'\n\napply plugin: 'kotlin-kapt'\n\nandroid {\n    compileSdkVersion build_versions.compile_sdk\n    buildToolsVersion build_versions.build_tools\n\n    defaultConfig {\n        minSdkVersion build_versions.min_sdk\n        targetSdkVersion build_versions.target_sdk\n        versionCode 1\n        versionName \"1.0\"\n        testInstrumentationRunner \"androidx.test.runner.AndroidJUnitRunner\"\n    }\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }\n    kotlinOptions {\n        jvmTarget = \"1.8\"\n        freeCompilerArgs += [\"-Xopt-in=kotlin.RequiresOptIn\"]\n    }\n\n    buildFeatures {\n        viewBinding = true\n    }\n}\n\ndependencies {\n    implementation fileTree(dir: 'libs', include: ['*.jar'])\n\n    kapt deps.room.compiler\n    kapt deps.glide.compiler\n\n    implementation deps.constraint_layout\n    implementation deps.app_compat\n    implementation deps.activity.activity_ktx\n    implementation deps.recyclerview\n    implementation deps.cardview\n    implementation deps.material\n    implementation deps.room.runtime\n    implementation deps.lifecycle.livedata_ktx\n    implementation deps.lifecycle.runtime\n    implementation deps.paging_runtime\n    implementation deps.kotlin.stdlib\n    implementation deps.retrofit.runtime\n    implementation deps.retrofit.gson\n    implementation deps.okhttp_logging_interceptor\n    implementation deps.glide.runtime\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/lib/build.gradle	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/lib/build.gradle	(date 1604315706000)
+@@ -23,11 +23,6 @@
+     }
+     kotlinOptions {
+         jvmTarget = "1.8"
+-        freeCompilerArgs += ["-Xopt-in=kotlin.RequiresOptIn"]
+-    }
+-
+-    buildFeatures {
+-        viewBinding = true
+     }
+ }
+ 
+@@ -46,7 +41,7 @@
+     implementation deps.room.runtime
+     implementation deps.lifecycle.livedata_ktx
+     implementation deps.lifecycle.runtime
+-    implementation deps.paging_runtime
++    implementation deps.paging_ktx
+     implementation deps.kotlin.stdlib
+     implementation deps.retrofit.runtime
+     implementation deps.retrofit.gson
+Index: ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/vo/RedditPost.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.vo\n\nimport androidx.room.ColumnInfo\nimport androidx.room.Entity\nimport androidx.room.Index\nimport androidx.room.PrimaryKey\nimport com.google.gson.annotations.SerializedName\n\n@Entity(tableName = \"posts\",\n        indices = [Index(value = [\"subreddit\"], unique = false)])\ndata class RedditPost(\n        @PrimaryKey\n        @SerializedName(\"name\")\n        val name: String,\n        @SerializedName(\"title\")\n        val title: String,\n        @SerializedName(\"score\")\n        val score: Int,\n        @SerializedName(\"author\")\n        val author: String,\n        @SerializedName(\"subreddit\") // technically mutable but fine for a demo\n        @ColumnInfo(collate = ColumnInfo.NOCASE)\n        val subreddit: String,\n        @SerializedName(\"num_comments\")\n        val num_comments: Int,\n        @SerializedName(\"created_utc\")\n        val created: Long,\n        val thumbnail: String?,\n        val url: String?) {\n    // to be consistent w/ changing backend order, we need to keep a data like this\n    var indexInResponse: Int = -1\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/vo/RedditPost.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/vo/RedditPost.kt	(date 1604315706000)
+@@ -34,7 +34,7 @@
+         val score: Int,
+         @SerializedName("author")
+         val author: String,
+-        @SerializedName("subreddit") // technically mutable but fine for a demo
++        @SerializedName("subreddit") // this seems mutable but fine for a demo
+         @ColumnInfo(collate = ColumnInfo.NOCASE)
+         val subreddit: String,
+         @SerializedName("num_comments")
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inDb/DbRedditPostRepository.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.repository.inDb\n\nimport androidx.paging.Pager\nimport androidx.paging.PagingConfig\nimport com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi\nimport com.android.example.paging.pagingwithnetwork.reddit.db.RedditDb\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository\n\n/**\n * Repository implementation that uses a database backed [androidx.paging.PagingSource] and\n * [androidx.paging.RemoteMediator] to load pages from network when there are no more items cached\n * in the database to load.\n */\nclass DbRedditPostRepository(val db: RedditDb, val redditApi: RedditApi) : RedditPostRepository {\n\n    override fun postsOfSubreddit(subReddit: String, pageSize: Int) = Pager(\n        config = PagingConfig(pageSize),\n        remoteMediator = PageKeyedRemoteMediator(db, redditApi, subReddit)\n    ) {\n        db.posts().postsBySubreddit(subReddit)\n    }.flow\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inDb/DbRedditPostRepository.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inDb/DbRedditPostRepository.kt	(date 1604315706000)
+@@ -16,23 +16,130 @@
+ 
+ package com.android.example.paging.pagingwithnetwork.reddit.repository.inDb
+ 
+-import androidx.paging.Pager
+-import androidx.paging.PagingConfig
++import androidx.annotation.MainThread
++import androidx.lifecycle.LiveData
++import androidx.lifecycle.MutableLiveData
++import androidx.lifecycle.switchMap
++import androidx.paging.LivePagedListBuilder
++import androidx.paging.toLiveData
+ import com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi
+ import com.android.example.paging.pagingwithnetwork.reddit.db.RedditDb
++import com.android.example.paging.pagingwithnetwork.reddit.repository.Listing
++import com.android.example.paging.pagingwithnetwork.reddit.repository.NetworkState
+ import com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository
++import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
++import retrofit2.Call
++import retrofit2.Callback
++import retrofit2.Response
++import java.util.concurrent.Executor
+ 
+ /**
+- * Repository implementation that uses a database backed [androidx.paging.PagingSource] and
+- * [androidx.paging.RemoteMediator] to load pages from network when there are no more items cached
+- * in the database to load.
++ * Repository implementation that uses a database PagedList + a boundary callback to return a
++ * listing that loads in pages.
+  */
+-class DbRedditPostRepository(val db: RedditDb, val redditApi: RedditApi) : RedditPostRepository {
++class DbRedditPostRepository(
++        val db: RedditDb,
++        private val redditApi: RedditApi,
++        private val ioExecutor: Executor,
++        private val networkPageSize: Int = DEFAULT_NETWORK_PAGE_SIZE) : RedditPostRepository {
++    companion object {
++        private const val DEFAULT_NETWORK_PAGE_SIZE = 10
++    }
+ 
+-    override fun postsOfSubreddit(subReddit: String, pageSize: Int) = Pager(
+-        config = PagingConfig(pageSize),
+-        remoteMediator = PageKeyedRemoteMediator(db, redditApi, subReddit)
+-    ) {
+-        db.posts().postsBySubreddit(subReddit)
+-    }.flow
+-}
++    /**
++     * Inserts the response into the database while also assigning position indices to items.
++     */
++    private fun insertResultIntoDb(subredditName: String, body: RedditApi.ListingResponse?) {
++        body!!.data.children.let { posts ->
++            db.runInTransaction {
++//                val start = db.posts().getNextIndexInSubreddit(subredditName)
++//                val items = posts.mapIndexed { index, child ->
++//                    child.data.indexInResponse = start + index
++//                    child.data
++//                }
++//                db.posts().insert(items)
++                val items = posts.map { it.data }
++                db.posts().insert(items)
++            }
++        }
++    }
++
++    /**
++     * When refresh is called, we simply run a fresh network request and when it arrives, clear
++     * the database table and insert all new items in a transaction.
++     * <p>
++     * Since the PagedList already uses a database bound data source, it will automatically be
++     * updated after the database transaction is finished.
++     */
++    @MainThread
++    private fun refresh(subredditName: String): LiveData<NetworkState> {
++        val networkState = MutableLiveData<NetworkState>()
++        networkState.value = NetworkState.LOADING
++        redditApi.getTop(subredditName, networkPageSize).enqueue(
++                object : Callback<RedditApi.ListingResponse> {
++                    override fun onFailure(call: Call<RedditApi.ListingResponse>, t: Throwable) {
++                        // retrofit calls this on main thread so safe to call set value
++                        networkState.value = NetworkState.error(t.message)
++                    }
++
++                    override fun onResponse(
++                            call: Call<RedditApi.ListingResponse>,
++                            response: Response<RedditApi.ListingResponse>) {
++                        ioExecutor.execute {
++                            db.runInTransaction {
++                                db.posts().deleteBySubreddit(subredditName)
++                                insertResultIntoDb(subredditName, response.body())
++                            }
++                            // since we are in bg thread now, post the result.
++                            networkState.postValue(NetworkState.LOADED)
++                        }
++                    }
++                }
++        )
++        return networkState
++    }
++
++    /**
++     * Returns a Listing for the given subreddit.
++     */
++    @MainThread
++    override fun postsOfSubreddit(subReddit: String, pageSize: Int): Listing<RedditPost> {
++        // create a boundary callback which will observe when the user reaches to the edges of
++        // the list and update the database with extra data.
++        val boundaryCallback = SubredditBoundaryCallback(
++                webservice = redditApi,
++                subredditName = subReddit,
++                handleResponse = this::insertResultIntoDb,
++                ioExecutor = ioExecutor,
++                networkPageSize = networkPageSize)
++        // we are using a mutable live data to trigger refresh requests which eventually calls
++        // refresh method and gets a new live data. Each refresh request by the user becomes a newly
++        // dispatched data in refreshTrigger
++        val refreshTrigger = MutableLiveData<Unit>()
++        val refreshState = refreshTrigger.switchMap {
++            refresh(subReddit)
++        }
++
++        // We use toLiveData Kotlin extension function here, you could also use LivePagedListBuilder
++//        val livePagedList = db.posts().postsBySubreddit(subReddit).toLiveData(
++//                pageSize = pageSize,
++//                boundaryCallback = boundaryCallback)
++
++        val livePagedList1 = DbSubRedditDataSourceFactory(db, subReddit).toLiveData(
++                pageSize = pageSize,
++                boundaryCallback = boundaryCallback)
++
++        return Listing(
++                pagedList = livePagedList1,
++                networkState = boundaryCallback.networkState,
++                retry = {
++                    boundaryCallback.helper.retryAllFailed()
++                },
++                refresh = {
++                    refreshTrigger.value = null
++                },
++                refreshState = refreshState
++        )
++    }
++}
++
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/RedditPostDao.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.db\n\nimport androidx.paging.PagingSource\nimport androidx.room.Dao\nimport androidx.room.Insert\nimport androidx.room.OnConflictStrategy\nimport androidx.room.Query\nimport com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost\n\n@Dao\ninterface RedditPostDao {\n    @Insert(onConflict = OnConflictStrategy.REPLACE)\n    suspend fun insertAll(posts: List<RedditPost>)\n\n    @Query(\"SELECT * FROM posts WHERE subreddit = :subreddit ORDER BY indexInResponse ASC\")\n    fun postsBySubreddit(subreddit: String): PagingSource<Int, RedditPost>\n\n    @Query(\"DELETE FROM posts WHERE subreddit = :subreddit\")\n    suspend fun deleteBySubreddit(subreddit: String)\n\n    @Query(\"SELECT MAX(indexInResponse) + 1 FROM posts WHERE subreddit = :subreddit\")\n    suspend fun getNextIndexInSubreddit(subreddit: String): Int\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/RedditPostDao.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/RedditPostDao.kt	(date 1604315706000)
+@@ -16,7 +16,7 @@
+ 
+ package com.android.example.paging.pagingwithnetwork.reddit.db
+ 
+-import androidx.paging.PagingSource
++import androidx.paging.DataSource
+ import androidx.room.Dao
+ import androidx.room.Insert
+ import androidx.room.OnConflictStrategy
+@@ -26,14 +26,20 @@
+ @Dao
+ interface RedditPostDao {
+     @Insert(onConflict = OnConflictStrategy.REPLACE)
+-    suspend fun insertAll(posts: List<RedditPost>)
++    fun insert(posts : List<RedditPost>)
+ 
+     @Query("SELECT * FROM posts WHERE subreddit = :subreddit ORDER BY indexInResponse ASC")
+-    fun postsBySubreddit(subreddit: String): PagingSource<Int, RedditPost>
++    fun postsBySubreddit(subreddit : String) : DataSource.Factory<Int, RedditPost>
++
++    @Query("SELECT * FROM posts WHERE subreddit = :subreddit ORDER BY name ASC LIMIT :total")
++    fun postsBySubreddit(subreddit: String, total: Int): List<RedditPost>
++
++    @Query("SELECT * FROM posts WHERE subreddit = :subreddit AND name > :lastName ORDER BY name ASC LIMIT :total")
++    fun postsBySubreddit(subreddit: String, total: Int, lastName: String): List<RedditPost>
+ 
+     @Query("DELETE FROM posts WHERE subreddit = :subreddit")
+-    suspend fun deleteBySubreddit(subreddit: String)
++    fun deleteBySubreddit(subreddit: String)
+ 
+     @Query("SELECT MAX(indexInResponse) + 1 FROM posts WHERE subreddit = :subreddit")
+-    suspend fun getNextIndexInSubreddit(subreddit: String): Int
+-}
++    fun getNextIndexInSubreddit(subreddit: String) : Int
++}
+\ No newline at end of file
+Index: ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/PostsAdapter.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.ui\n\nimport android.view.ViewGroup\nimport androidx.paging.PagingDataAdapter\nimport androidx.recyclerview.widget.DiffUtil\nimport com.android.example.paging.pagingwithnetwork.GlideRequests\nimport com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost\n\n/**\n * A simple adapter implementation that shows Reddit posts.\n */\nclass PostsAdapter(private val glide: GlideRequests)\n    : PagingDataAdapter<RedditPost, RedditPostViewHolder>(POST_COMPARATOR) {\n\n    override fun onBindViewHolder(holder: RedditPostViewHolder, position: Int) {\n        holder.bind(getItem(position))\n    }\n\n    override fun onBindViewHolder(\n            holder: RedditPostViewHolder,\n            position: Int,\n            payloads: MutableList<Any>\n    ) {\n        if (payloads.isNotEmpty()) {\n            val item = getItem(position)\n            holder.updateScore(item)\n        } else {\n            onBindViewHolder(holder, position)\n        }\n    }\n\n    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RedditPostViewHolder {\n        return RedditPostViewHolder.create(parent, glide)\n    }\n\n    companion object {\n        private val PAYLOAD_SCORE = Any()\n        val POST_COMPARATOR = object : DiffUtil.ItemCallback<RedditPost>() {\n            override fun areContentsTheSame(oldItem: RedditPost, newItem: RedditPost): Boolean =\n                    oldItem == newItem\n\n            override fun areItemsTheSame(oldItem: RedditPost, newItem: RedditPost): Boolean =\n                    oldItem.name == newItem.name\n\n            override fun getChangePayload(oldItem: RedditPost, newItem: RedditPost): Any? {\n                return if (sameExceptScore(oldItem, newItem)) {\n                    PAYLOAD_SCORE\n                } else {\n                    null\n                }\n            }\n        }\n\n        private fun sameExceptScore(oldItem: RedditPost, newItem: RedditPost): Boolean {\n            // DON'T do this copy in a real app, it is just convenient here for the demo :)\n            // because reddit randomizes scores, we want to pass it as a payload to minimize\n            // UI updates between refreshes\n            return oldItem.copy(score = newItem.score) == newItem\n        }\n    }\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/PostsAdapter.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/PostsAdapter.kt	(date 1604315706000)
+@@ -16,37 +16,79 @@
+ 
+ package com.android.example.paging.pagingwithnetwork.reddit.ui
+ 
+-import android.view.ViewGroup
+-import androidx.paging.PagingDataAdapter
++import androidx.paging.PagedListAdapter
+ import androidx.recyclerview.widget.DiffUtil
++import androidx.recyclerview.widget.RecyclerView
++import android.view.ViewGroup
++import com.android.example.lib.R
+ import com.android.example.paging.pagingwithnetwork.GlideRequests
++import com.android.example.paging.pagingwithnetwork.reddit.repository.NetworkState
+ import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
+ 
+ /**
+  * A simple adapter implementation that shows Reddit posts.
+  */
+-class PostsAdapter(private val glide: GlideRequests)
+-    : PagingDataAdapter<RedditPost, RedditPostViewHolder>(POST_COMPARATOR) {
+-
+-    override fun onBindViewHolder(holder: RedditPostViewHolder, position: Int) {
+-        holder.bind(getItem(position))
++class PostsAdapter(
++        private val glide: GlideRequests,
++        private val retryCallback: () -> Unit)
++    : PagedListAdapter<RedditPost, RecyclerView.ViewHolder>(POST_COMPARATOR) {
++    private var networkState: NetworkState? = null
++    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
++        when (getItemViewType(position)) {
++            R.layout.reddit_post_item -> (holder as RedditPostViewHolder).bind(getItem(position))
++            R.layout.network_state_item -> (holder as NetworkStateItemViewHolder).bindTo(
++                    networkState)
++        }
+     }
+ 
+     override fun onBindViewHolder(
+-            holder: RedditPostViewHolder,
++            holder: RecyclerView.ViewHolder,
+             position: Int,
+-            payloads: MutableList<Any>
+-    ) {
++            payloads: MutableList<Any>) {
+         if (payloads.isNotEmpty()) {
+             val item = getItem(position)
+-            holder.updateScore(item)
++            (holder as RedditPostViewHolder).updateScore(item)
+         } else {
+             onBindViewHolder(holder, position)
+         }
+     }
+ 
+-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RedditPostViewHolder {
+-        return RedditPostViewHolder.create(parent, glide)
++    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
++        return when (viewType) {
++            R.layout.reddit_post_item -> RedditPostViewHolder.create(parent, glide)
++            R.layout.network_state_item -> NetworkStateItemViewHolder.create(parent, retryCallback)
++            else -> throw IllegalArgumentException("unknown view type $viewType")
++        }
++    }
++
++    private fun hasExtraRow() = networkState != null && networkState != NetworkState.LOADED
++
++    override fun getItemViewType(position: Int): Int {
++        return if (hasExtraRow() && position == itemCount - 1) {
++            R.layout.network_state_item
++        } else {
++            R.layout.reddit_post_item
++        }
++    }
++
++    override fun getItemCount(): Int {
++        return super.getItemCount() + if (hasExtraRow()) 1 else 0
++    }
++
++    fun setNetworkState(newNetworkState: NetworkState?) {
++        val previousState = this.networkState
++        val hadExtraRow = hasExtraRow()
++        this.networkState = newNetworkState
++        val hasExtraRow = hasExtraRow()
++        if (hadExtraRow != hasExtraRow) {
++            if (hadExtraRow) {
++                notifyItemRemoved(super.getItemCount())
++            } else {
++                notifyItemInserted(super.getItemCount())
++            }
++        } else if (hasExtraRow && previousState != newNetworkState) {
++            notifyItemChanged(itemCount - 1)
++        }
+     }
+ 
+     companion object {
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/InMemoryByItemRepository.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byItem\n\nimport androidx.paging.Pager\nimport androidx.paging.PagingConfig\nimport com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository\n\n/**\n * Repository implementation that that loads data directly from the network and uses the Item's name\n * as the key to discover prev/next pages.\n */\nclass InMemoryByItemRepository(private val redditApi: RedditApi) : RedditPostRepository {\n    override fun postsOfSubreddit(subReddit: String, pageSize: Int) = Pager(\n            PagingConfig(\n                    pageSize = pageSize,\n                    enablePlaceholders = false\n            )\n    ) {\n        ItemKeyedSubredditPagingSource(\n                redditApi = redditApi,\n                subredditName = subReddit\n        )\n    }.flow\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/InMemoryByItemRepository.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/InMemoryByItemRepository.kt	(date 1604315706000)
+@@ -16,25 +16,54 @@
+ 
+ package com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byItem
+ 
+-import androidx.paging.Pager
+-import androidx.paging.PagingConfig
++import androidx.annotation.MainThread
++import androidx.lifecycle.switchMap
++import androidx.paging.Config
++import androidx.paging.toLiveData
+ import com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi
++import com.android.example.paging.pagingwithnetwork.reddit.repository.Listing
+ import com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository
++import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
++import java.util.concurrent.Executor
+ 
+ /**
+- * Repository implementation that that loads data directly from the network and uses the Item's name
+- * as the key to discover prev/next pages.
++ * Repository implementation that returns a Listing that loads data directly from the network
++ * and uses the Item's name as the key to discover prev/next pages.
+  */
+-class InMemoryByItemRepository(private val redditApi: RedditApi) : RedditPostRepository {
+-    override fun postsOfSubreddit(subReddit: String, pageSize: Int) = Pager(
+-            PagingConfig(
+-                    pageSize = pageSize,
+-                    enablePlaceholders = false
+-            )
+-    ) {
+-        ItemKeyedSubredditPagingSource(
+-                redditApi = redditApi,
+-                subredditName = subReddit
++class InMemoryByItemRepository(
++        private val redditApi: RedditApi,
++        private val networkExecutor: Executor) : RedditPostRepository {
++    @MainThread
++    override fun postsOfSubreddit(subReddit: String, pageSize: Int): Listing<RedditPost> {
++        val sourceFactory = SubRedditDataSourceFactory(redditApi, subReddit, networkExecutor)
++
++        // We use toLiveData Kotlin ext. function here, you could also use LivePagedListBuilder
++        val livePagedList = sourceFactory.toLiveData(
++                // we use Config Kotlin ext. function here, could also use PagedList.Config.Builder
++                config = Config(
++                        pageSize = pageSize,
++                        enablePlaceholders = false,
++                        initialLoadSizeHint = pageSize * 2),
++                // provide custom executor for network requests, otherwise it will default to
++                // Arch Components' IO pool which is also used for disk access
++                fetchExecutor = networkExecutor)
++
++        val refreshState = sourceFactory.sourceLiveData.switchMap {
++            it.initialLoad
++        }
++        return Listing(
++                pagedList = livePagedList,
++                networkState = sourceFactory.sourceLiveData.switchMap {
++                  it.networkState
++                },
++                retry = {
++                    sourceFactory.sourceLiveData.value?.retryAllFailed()
++                },
++                refresh = {
++                    sourceFactory.sourceLiveData.value?.invalidate()
++                },
++                refreshState = refreshState
+         )
+-    }.flow
++    }
+ }
++
+Index: ../PagingWithNetworkSample/versions.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2018 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\n\n/**\n * Shared file between builds so that they can all use the same dependencies and\n * maven repositories.\n **/\next.deps = [:]\ndef versions = [:]\nversions.activity = '1.1.0'\nversions.android_gradle_plugin = '4.0.0'\nversions.annotations = \"1.0.0\"\nversions.apache_commons = \"2.5\"\nversions.appcompat = \"1.2.0-alpha02\"\nversions.arch_core = \"2.1.0\"\nversions.atsl_core = \"1.2.0\"\nversions.atsl_junit = \"1.1.1\"\nversions.atsl_rules = \"1.2.0\"\nversions.atsl_runner = \"1.2.0\"\nversions.benchmark = \"1.1.0-alpha01\"\nversions.cardview = \"1.0.0\"\nversions.constraint_layout = \"2.0.0-alpha2\"\nversions.core_ktx = \"1.1.0\"\nversions.coroutines = \"1.3.7\"\nversions.dagger = \"2.16\"\nversions.dexmaker = \"2.2.0\"\nversions.espresso = \"3.2.0\"\nversions.fragment = \"1.2.1\"\nversions.glide = \"4.8.0\"\nversions.hamcrest = \"1.3\"\nversions.junit = \"4.12\"\nversions.kotlin = \"1.3.72\"\nversions.lifecycle = \"2.2.0\"\nversions.material = \"1.0.0\"\nversions.mockito = \"2.25.0\"\nversions.mockito_all = \"1.10.19\"\nversions.mockito_android = \"2.25.0\"\nversions.mockwebserver = \"3.8.1\"\nversions.navigation = \"2.3.0-alpha01\"\nversions.okhttp_logging_interceptor = \"3.9.0\"\nversions.paging = \"3.0.0-alpha07\"\nversions.recyclerview = \"1.0.0\"\nversions.retrofit = \"2.9.0\"\nversions.robolectric = \"4.2\"\nversions.room = \"2.3.0-alpha01\"\nversions.rx_android = \"2.0.1\"\nversions.rxjava2 = \"2.1.3\"\nversions.timber = \"4.7.1\"\nversions.transition = \"1.3.0\"\nversions.truth = \"1.0.1\"\nversions.work = \"2.2.0\"\next.versions = versions\n\ndef build_versions = [:]\nbuild_versions.min_sdk = 14\nbuild_versions.compile_sdk = 29\nbuild_versions.target_sdk = 29\nbuild_versions.build_tools = \"29.0.3\"\next.build_versions = build_versions\n\ndef deps = [:]\n\ndef activity = [:]\nactivity.activity_ktx = \"androidx.activity:activity-ktx:$versions.activity\"\ndeps.activity = activity\n\ndeps.android_gradle_plugin = \"com.android.tools.build:gradle:$versions.android_gradle_plugin\"\n\ndeps.annotations = \"androidx.annotation:annotation:$versions.annotations\"\n\ndeps.app_compat = \"androidx.appcompat:appcompat:$versions.appcompat\"\n\ndef arch_core = [:]\narch_core.runtime = \"androidx.arch.core:core-runtime:$versions.arch_core\"\narch_core.testing = \"androidx.arch.core:core-testing:$versions.arch_core\"\ndeps.arch_core = arch_core\n\ndef atsl = [:]\natsl.core = \"androidx.test:core:$versions.atsl_core\"\natsl.ext_junit = \"androidx.test.ext:junit:$versions.atsl_junit\"\natsl.runner = \"androidx.test:runner:$versions.atsl_runner\"\natsl.rules = \"androidx.test:rules:$versions.atsl_rules\"\ndeps.atsl = atsl\n\ndeps.benchmark = \"androidx.benchmark:benchmark-junit4:$versions.benchmark\"\ndeps.benchmark_gradle = \"androidx.benchmark:benchmark-gradle-plugin:$versions.benchmark\"\n\ndeps.cardview = \"androidx.cardview:cardview:$versions.cardview\"\n\ndeps.constraint_layout = \"androidx.constraintlayout:constraintlayout:$versions.constraint_layout\"\n\ndeps.core_ktx = \"androidx.core:core-ktx:$versions.core_ktx\"\n\ndef coroutines = [:]\ncoroutines.android = \"org.jetbrains.kotlinx:kotlinx-coroutines-android:$versions.coroutines\"\ncoroutines.test = \"org.jetbrains.kotlinx:kotlinx-coroutines-test:$versions.coroutines\"\ndeps.coroutines = coroutines\n\ndef dagger = [:]\ndagger.runtime = \"com.google.dagger:dagger:$versions.dagger\"\ndagger.android = \"com.google.dagger:dagger-android:$versions.dagger\"\ndagger.android_support = \"com.google.dagger:dagger-android-support:$versions.dagger\"\ndagger.compiler = \"com.google.dagger:dagger-compiler:$versions.dagger\"\ndagger.android_support_compiler = \"com.google.dagger:dagger-android-processor:$versions.dagger\"\ndeps.dagger = dagger\n\ndeps.dexmaker = \"com.linkedin.dexmaker:dexmaker-mockito:$versions.dexmaker\"\n\ndef espresso = [:]\nespresso.core = \"androidx.test.espresso:espresso-core:$versions.espresso\"\nespresso.contrib = \"androidx.test.espresso:espresso-contrib:$versions.espresso\"\nespresso.intents = \"androidx.test.espresso:espresso-intents:$versions.espresso\"\ndeps.espresso = espresso\n\ndef fragment = [:]\nfragment.runtime = \"androidx.fragment:fragment:${versions.fragment}\"\nfragment.runtime_ktx = \"androidx.fragment:fragment-ktx:${versions.fragment}\"\nfragment.testing = \"androidx.fragment:fragment-testing:${versions.fragment}\"\ndeps.fragment = fragment\n\ndef glide = [:]\nglide.runtime = \"com.github.bumptech.glide:glide:$versions.glide\"\nglide.compiler = \"com.github.bumptech.glide:compiler:$versions.glide\"\ndeps.glide = glide\n\ndeps.hamcrest = \"org.hamcrest:hamcrest-all:$versions.hamcrest\"\n\ndeps.junit = \"junit:junit:$versions.junit\"\n\ndef kotlin = [:]\nkotlin.stdlib = \"org.jetbrains.kotlin:kotlin-stdlib-jdk7:$versions.kotlin\"\nkotlin.test = \"org.jetbrains.kotlin:kotlin-test-junit:$versions.kotlin\"\nkotlin.plugin = \"org.jetbrains.kotlin:kotlin-gradle-plugin:$versions.kotlin\"\nkotlin.allopen = \"org.jetbrains.kotlin:kotlin-allopen:$versions.kotlin\"\ndeps.kotlin = kotlin\n\ndef lifecycle = [:]\nlifecycle.runtime = \"androidx.lifecycle:lifecycle-runtime:$versions.lifecycle\"\nlifecycle.java8 = \"androidx.lifecycle:lifecycle-common-java8:$versions.lifecycle\"\nlifecycle.compiler = \"androidx.lifecycle:lifecycle-compiler:$versions.lifecycle\"\nlifecycle.viewmodel_ktx = \"androidx.lifecycle:lifecycle-viewmodel-ktx:$versions.lifecycle\"\nlifecycle.livedata_ktx = \"androidx.lifecycle:lifecycle-livedata-ktx:$versions.lifecycle\"\ndeps.lifecycle = lifecycle\n\ndeps.material = \"com.google.android.material:material:$versions.material\"\n\ndef mockito = [:]\nmockito.core = \"org.mockito:mockito-core:$versions.mockito\"\nmockito.all = \"org.mockito:mockito-all:$versions.mockito_all\"\nmockito.android = \"org.mockito:mockito-android:$versions.mockito_android\"\ndeps.mockito = mockito\n\ndeps.mock_web_server = \"com.squareup.okhttp3:mockwebserver:$versions.mockwebserver\"\n\ndef navigation = [:]\nnavigation.runtime = \"androidx.navigation:navigation-runtime:$versions.navigation\"\nnavigation.runtime_ktx = \"androidx.navigation:navigation-runtime-ktx:$versions.navigation\"\nnavigation.fragment = \"androidx.navigation:navigation-fragment:$versions.navigation\"\nnavigation.fragment_ktx = \"androidx.navigation:navigation-fragment-ktx:$versions.navigation\"\nnavigation.testing = \"androidx.navigation:navigation-testing:$versions.navigation\"\nnavigation.ui = \"androidx.navigation:navigation-ui:$versions.navigation\"\nnavigation.ui_ktx = \"androidx.navigation:navigation-ui-ktx:$versions.navigation\"\nnavigation.safe_args_plugin = \"androidx.navigation:navigation-safe-args-gradle-plugin:$versions.navigation\"\ndeps.navigation = navigation\n\ndeps.okhttp_logging_interceptor = \"com.squareup.okhttp3:logging-interceptor:${versions.okhttp_logging_interceptor}\"\n\ndeps.paging_runtime = \"androidx.paging:paging-runtime:$versions.paging\"\n\ndeps.recyclerview = \"androidx.recyclerview:recyclerview:$versions.recyclerview\"\n\ndef retrofit = [:]\nretrofit.runtime = \"com.squareup.retrofit2:retrofit:$versions.retrofit\"\nretrofit.gson = \"com.squareup.retrofit2:converter-gson:$versions.retrofit\"\nretrofit.mock = \"com.squareup.retrofit2:retrofit-mock:$versions.retrofit\"\ndeps.retrofit = retrofit\n\ndeps.robolectric = \"org.robolectric:robolectric:$versions.robolectric\"\n\ndef room = [:]\nroom.runtime = \"androidx.room:room-runtime:$versions.room\"\nroom.compiler = \"androidx.room:room-compiler:$versions.room\"\nroom.ktx = \"androidx.room:room-ktx:$versions.room\"\nroom.rxjava2 = \"androidx.room:room-rxjava2:$versions.room\"\nroom.testing = \"androidx.room:room-testing:$versions.room\"\ndeps.room = room\n\ndeps.rx_android = \"io.reactivex.rxjava2:rxandroid:$versions.rx_android\"\n\ndeps.rxjava2 = \"io.reactivex.rxjava2:rxjava:$versions.rxjava2\"\n\ndeps.timber = \"com.jakewharton.timber:timber:$versions.timber\"\n\ndeps.transition = \"androidx.transition:transition:$versions.transition\"\n\ndeps.truth = \"com.google.truth:truth:$versions.truth\"\n\ndef work = [:]\nwork.runtime = \"androidx.work:work-runtime:$versions.work\"\nwork.testing = \"androidx.work:work-testing:$versions.work\"\nwork.firebase = \"androidx.work:work-firebase:$versions.work\"\nwork.runtime_ktx = \"androidx.work:work-runtime-ktx:$versions.work\"\ndeps.work = work\n\next.deps = deps\n\ndef addRepos(RepositoryHandler handler) {\n    handler.google()\n    handler.jcenter()\n    handler.maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }\n}\next.addRepos = this.&addRepos\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/versions.gradle	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/versions.gradle	(date 1604315706000)
+@@ -22,7 +22,7 @@
+ ext.deps = [:]
+ def versions = [:]
+ versions.activity = '1.1.0'
+-versions.android_gradle_plugin = '4.0.0'
++versions.android_gradle_plugin = '3.6.2'
+ versions.annotations = "1.0.0"
+ versions.apache_commons = "2.5"
+ versions.appcompat = "1.2.0-alpha02"
+@@ -31,11 +31,11 @@
+ versions.atsl_junit = "1.1.1"
+ versions.atsl_rules = "1.2.0"
+ versions.atsl_runner = "1.2.0"
+-versions.benchmark = "1.1.0-alpha01"
++versions.benchmark = "1.0.0"
+ versions.cardview = "1.0.0"
+ versions.constraint_layout = "2.0.0-alpha2"
+ versions.core_ktx = "1.1.0"
+-versions.coroutines = "1.3.7"
++versions.coroutines = "1.3.3"
+ versions.dagger = "2.16"
+ versions.dexmaker = "2.2.0"
+ versions.espresso = "3.2.0"
+@@ -43,7 +43,7 @@
+ versions.glide = "4.8.0"
+ versions.hamcrest = "1.3"
+ versions.junit = "4.12"
+-versions.kotlin = "1.3.72"
++versions.kotlin = "1.3.61"
+ versions.lifecycle = "2.2.0"
+ versions.material = "1.0.0"
+ versions.mockito = "2.25.0"
+@@ -52,11 +52,11 @@
+ versions.mockwebserver = "3.8.1"
+ versions.navigation = "2.3.0-alpha01"
+ versions.okhttp_logging_interceptor = "3.9.0"
+-versions.paging = "3.0.0-alpha07"
++versions.paging = "2.1.1"
+ versions.recyclerview = "1.0.0"
+-versions.retrofit = "2.9.0"
++versions.retrofit = "2.3.0"
+ versions.robolectric = "4.2"
+-versions.room = "2.3.0-alpha01"
++versions.room = "2.2.3"
+ versions.rx_android = "2.0.1"
+ versions.rxjava2 = "2.1.3"
+ versions.timber = "4.7.1"
+@@ -179,7 +179,7 @@
+ 
+ deps.okhttp_logging_interceptor = "com.squareup.okhttp3:logging-interceptor:${versions.okhttp_logging_interceptor}"
+ 
+-deps.paging_runtime = "androidx.paging:paging-runtime:$versions.paging"
++deps.paging_ktx = "androidx.paging:paging-runtime-ktx:$versions.paging"
+ 
+ deps.recyclerview = "androidx.recyclerview:recyclerview:$versions.recyclerview"
+ 
+@@ -194,7 +194,6 @@
+ def room = [:]
+ room.runtime = "androidx.room:room-runtime:$versions.room"
+ room.compiler = "androidx.room:room-compiler:$versions.room"
+-room.ktx = "androidx.room:room-ktx:$versions.room"
+ room.rxjava2 = "androidx.room:room-rxjava2:$versions.room"
+ room.testing = "androidx.room:room-testing:$versions.room"
+ deps.room = room
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/RedditActivity.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.ui\n\nimport android.content.Context\nimport android.content.Intent\nimport android.os.Bundle\nimport android.view.KeyEvent\nimport android.view.inputmethod.EditorInfo\nimport androidx.activity.viewModels\nimport androidx.appcompat.app.AppCompatActivity\nimport androidx.lifecycle.AbstractSavedStateViewModelFactory\nimport androidx.lifecycle.SavedStateHandle\nimport androidx.lifecycle.ViewModel\nimport androidx.lifecycle.lifecycleScope\nimport androidx.paging.LoadState\nimport com.android.example.paging.pagingwithnetwork.GlideApp\nimport com.android.example.paging.pagingwithnetwork.R\nimport com.android.example.paging.pagingwithnetwork.reddit.ServiceLocator\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository\nimport kotlinx.android.synthetic.main.activity_reddit.*\nimport kotlinx.coroutines.ExperimentalCoroutinesApi\nimport kotlinx.coroutines.FlowPreview\nimport kotlinx.coroutines.flow.collect\nimport kotlinx.coroutines.flow.collectLatest\nimport kotlinx.coroutines.flow.distinctUntilChangedBy\nimport kotlinx.coroutines.flow.filter\n\n/**\n * A list activity that shows reddit posts in the given sub-reddit.\n * <p>\n * The intent arguments can be modified to make it use a different repository (see MainActivity).\n */\nclass RedditActivity : AppCompatActivity() {\n    companion object {\n        const val KEY_REPOSITORY_TYPE = \"repository_type\"\n        fun intentFor(context: Context, type: RedditPostRepository.Type): Intent {\n            val intent = Intent(context, RedditActivity::class.java)\n            intent.putExtra(KEY_REPOSITORY_TYPE, type.ordinal)\n            return intent\n        }\n    }\n\n    private val model: SubRedditViewModel by viewModels {\n        object : AbstractSavedStateViewModelFactory(this, null) {\n            override fun <T : ViewModel?> create(\n                key: String,\n                modelClass: Class<T>,\n                handle: SavedStateHandle\n            ): T {\n                val repoTypeParam = intent.getIntExtra(KEY_REPOSITORY_TYPE, 0)\n                val repoType = RedditPostRepository.Type.values()[repoTypeParam]\n                val repo = ServiceLocator.instance(this@RedditActivity)\n                    .getRepository(repoType)\n                @Suppress(\"UNCHECKED_CAST\")\n                return SubRedditViewModel(repo, handle) as T\n            }\n        }\n    }\n\n    private lateinit var adapter: PostsAdapter\n\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        setContentView(R.layout.activity_reddit)\n        initAdapter()\n        initSwipeToRefresh()\n        initSearch()\n    }\n\n    private fun initAdapter() {\n        val glide = GlideApp.with(this)\n        adapter = PostsAdapter(glide)\n        list.adapter = adapter.withLoadStateHeaderAndFooter(\n            header = PostsLoadStateAdapter(adapter),\n            footer = PostsLoadStateAdapter(adapter)\n        )\n\n        lifecycleScope.launchWhenCreated {\n            @OptIn(ExperimentalCoroutinesApi::class)\n            adapter.loadStateFlow.collectLatest { loadStates ->\n                swipe_refresh.isRefreshing = loadStates.refresh is LoadState.Loading\n            }\n        }\n\n        lifecycleScope.launchWhenCreated {\n            @OptIn(ExperimentalCoroutinesApi::class)\n            model.posts.collectLatest {\n                adapter.submitData(it)\n            }\n        }\n\n        lifecycleScope.launchWhenCreated {\n            @OptIn(FlowPreview::class)\n            adapter.loadStateFlow\n                // Only emit when REFRESH LoadState for RemoteMediator changes.\n                .distinctUntilChangedBy { it.refresh }\n                // Only react to cases where Remote REFRESH completes i.e., NotLoading.\n                .filter { it.refresh is LoadState.NotLoading }\n                .collect { list.scrollToPosition(0) }\n        }\n    }\n\n    private fun initSwipeToRefresh() {\n        swipe_refresh.setOnRefreshListener { adapter.refresh() }\n    }\n\n    private fun initSearch() {\n        input.setOnEditorActionListener { _, actionId, _ ->\n            if (actionId == EditorInfo.IME_ACTION_GO) {\n                updatedSubredditFromInput()\n                true\n            } else {\n                false\n            }\n        }\n        input.setOnKeyListener { _, keyCode, event ->\n            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {\n                updatedSubredditFromInput()\n                true\n            } else {\n                false\n            }\n        }\n    }\n\n    private fun updatedSubredditFromInput() {\n        input.text.trim().toString().let {\n            if (it.isNotBlank() && model.shouldShowSubreddit(it)) {\n                model.showSubreddit(it)\n            }\n        }\n    }\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/RedditActivity.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/RedditActivity.kt	(date 1604315706000)
+@@ -24,21 +24,19 @@
+ import androidx.activity.viewModels
+ import androidx.appcompat.app.AppCompatActivity
+ import androidx.lifecycle.AbstractSavedStateViewModelFactory
++import androidx.lifecycle.Observer
+ import androidx.lifecycle.SavedStateHandle
+ import androidx.lifecycle.ViewModel
+-import androidx.lifecycle.lifecycleScope
+-import androidx.paging.LoadState
++import androidx.paging.PagedList
++import androidx.recyclerview.widget.LinearLayoutManager
++import androidx.recyclerview.widget.RecyclerView
+ import com.android.example.paging.pagingwithnetwork.GlideApp
+ import com.android.example.paging.pagingwithnetwork.R
+ import com.android.example.paging.pagingwithnetwork.reddit.ServiceLocator
++import com.android.example.paging.pagingwithnetwork.reddit.repository.NetworkState
+ import com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository
++import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
+ import kotlinx.android.synthetic.main.activity_reddit.*
+-import kotlinx.coroutines.ExperimentalCoroutinesApi
+-import kotlinx.coroutines.FlowPreview
+-import kotlinx.coroutines.flow.collect
+-import kotlinx.coroutines.flow.collectLatest
+-import kotlinx.coroutines.flow.distinctUntilChangedBy
+-import kotlinx.coroutines.flow.filter
+ 
+ /**
+  * A list activity that shows reddit posts in the given sub-reddit.
+@@ -58,22 +56,20 @@
+     private val model: SubRedditViewModel by viewModels {
+         object : AbstractSavedStateViewModelFactory(this, null) {
+             override fun <T : ViewModel?> create(
+-                key: String,
+-                modelClass: Class<T>,
+-                handle: SavedStateHandle
++                    key: String,
++                    modelClass: Class<T>,
++                    handle: SavedStateHandle
+             ): T {
+                 val repoTypeParam = intent.getIntExtra(KEY_REPOSITORY_TYPE, 0)
+                 val repoType = RedditPostRepository.Type.values()[repoTypeParam]
+                 val repo = ServiceLocator.instance(this@RedditActivity)
+-                    .getRepository(repoType)
++                        .getRepository(repoType)
+                 @Suppress("UNCHECKED_CAST")
+                 return SubRedditViewModel(repo, handle) as T
+             }
+         }
+     }
+ 
+-    private lateinit var adapter: PostsAdapter
+-
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
+         setContentView(R.layout.activity_reddit)
+@@ -84,39 +80,33 @@
+ 
+     private fun initAdapter() {
+         val glide = GlideApp.with(this)
+-        adapter = PostsAdapter(glide)
+-        list.adapter = adapter.withLoadStateHeaderAndFooter(
+-            header = PostsLoadStateAdapter(adapter),
+-            footer = PostsLoadStateAdapter(adapter)
+-        )
+-
+-        lifecycleScope.launchWhenCreated {
+-            @OptIn(ExperimentalCoroutinesApi::class)
+-            adapter.loadStateFlow.collectLatest { loadStates ->
+-                swipe_refresh.isRefreshing = loadStates.refresh is LoadState.Loading
+-            }
++        val adapter = PostsAdapter(glide) {
++            model.retry()
+         }
+-
+-        lifecycleScope.launchWhenCreated {
+-            @OptIn(ExperimentalCoroutinesApi::class)
+-            model.posts.collectLatest {
+-                adapter.submitData(it)
+-            }
+-        }
+-
+-        lifecycleScope.launchWhenCreated {
+-            @OptIn(FlowPreview::class)
+-            adapter.loadStateFlow
+-                // Only emit when REFRESH LoadState for RemoteMediator changes.
+-                .distinctUntilChangedBy { it.refresh }
+-                // Only react to cases where Remote REFRESH completes i.e., NotLoading.
+-                .filter { it.refresh is LoadState.NotLoading }
+-                .collect { list.scrollToPosition(0) }
+-        }
++        list.adapter = adapter
++        model.posts.observe(this, Observer<PagedList<RedditPost>> {
++            adapter.submitList(it) {
++                // Workaround for an issue where RecyclerView incorrectly uses the loading / spinner
++                // item added to the end of the list as an anchor during initial load.
++                val layoutManager = (list.layoutManager as LinearLayoutManager)
++                val position = layoutManager.findFirstCompletelyVisibleItemPosition()
++                if (position != RecyclerView.NO_POSITION) {
++                    list.scrollToPosition(position)
++                }
++            }
++        })
++        model.networkState.observe(this, Observer {
++            adapter.setNetworkState(it)
++        })
+     }
+ 
+     private fun initSwipeToRefresh() {
+-        swipe_refresh.setOnRefreshListener { adapter.refresh() }
++        model.refreshState.observe(this, Observer {
++            swipe_refresh.isRefreshing = it == NetworkState.LOADING
++        })
++        swipe_refresh.setOnRefreshListener {
++            model.refresh()
++        }
+     }
+ 
+     private fun initSearch() {
+@@ -140,8 +130,11 @@
+ 
+     private fun updatedSubredditFromInput() {
+         input.text.trim().toString().let {
+-            if (it.isNotBlank() && model.shouldShowSubreddit(it)) {
+-                model.showSubreddit(it)
++            if (it.isNotEmpty()) {
++                if (model.showSubreddit(it)) {
++                    list.scrollToPosition(0)
++                    (list.adapter as? PostsAdapter)?.submitList(null)
++                }
+             }
+         }
+     }
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/InMemoryByPageKeyRepository.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byPage\n\nimport androidx.paging.Pager\nimport androidx.paging.PagingConfig\nimport com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository\n\n/**\n * Repository implementation that loads data directly from network by using the previous / next page\n * keys returned in the query.\n */\nclass InMemoryByPageKeyRepository(private val redditApi: RedditApi) : RedditPostRepository {\n    override fun postsOfSubreddit(subReddit: String, pageSize: Int) = Pager(\n            PagingConfig(pageSize)\n    ) {\n        PageKeyedSubredditPagingSource(\n                redditApi = redditApi,\n                subredditName = subReddit\n        )\n    }.flow\n}\n\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/InMemoryByPageKeyRepository.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/InMemoryByPageKeyRepository.kt	(date 1604315706000)
+@@ -16,23 +16,48 @@
+ 
+ package com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byPage
+ 
+-import androidx.paging.Pager
+-import androidx.paging.PagingConfig
++import androidx.annotation.MainThread
++import androidx.lifecycle.switchMap
++import androidx.paging.toLiveData
+ import com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi
++import com.android.example.paging.pagingwithnetwork.reddit.repository.Listing
+ import com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository
++import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
++import java.util.concurrent.Executor
+ 
+ /**
+- * Repository implementation that loads data directly from network by using the previous / next page
+- * keys returned in the query.
++ * Repository implementation that returns a Listing that loads data directly from network by using
++ * the previous / next page keys returned in the query.
+  */
+-class InMemoryByPageKeyRepository(private val redditApi: RedditApi) : RedditPostRepository {
+-    override fun postsOfSubreddit(subReddit: String, pageSize: Int) = Pager(
+-            PagingConfig(pageSize)
+-    ) {
+-        PageKeyedSubredditPagingSource(
+-                redditApi = redditApi,
+-                subredditName = subReddit
++class InMemoryByPageKeyRepository(private val redditApi: RedditApi,
++                                  private val networkExecutor: Executor) : RedditPostRepository {
++    @MainThread
++    override fun postsOfSubreddit(subReddit: String, pageSize: Int): Listing<RedditPost> {
++        val sourceFactory = SubRedditDataSourceFactory(redditApi, subReddit, networkExecutor)
++
++        // We use toLiveData Kotlin extension function here, you could also use LivePagedListBuilder
++        val livePagedList = sourceFactory.toLiveData(
++                pageSize = pageSize,
++                // provide custom executor for network requests, otherwise it will default to
++                // Arch Components' IO pool which is also used for disk access
++                fetchExecutor = networkExecutor)
++
++        val refreshState = sourceFactory.sourceLiveData.switchMap {
++            it.initialLoad
++        }
++        return Listing(
++                pagedList = livePagedList,
++                networkState = sourceFactory.sourceLiveData.switchMap {
++                  it.networkState
++                },
++                retry = {
++                    sourceFactory.sourceLiveData.value?.retryAllFailed()
++                },
++                refresh = {
++                    sourceFactory.sourceLiveData.value?.invalidate()
++                },
++                refreshState = refreshState
+         )
+-    }.flow
++    }
+ }
+ 
+Index: ../PagingWithNetworkSample/app/src/test-common/java/com/android/example/paging/pagingwithnetwork/repository/FakeRedditApi.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.repository\n\nimport com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi\nimport com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost\nimport retrofit2.http.Path\nimport retrofit2.http.Query\nimport java.io.IOException\nimport kotlin.math.min\n\n/**\n * implements the RedditApi with controllable requests\n */\nclass FakeRedditApi : RedditApi {\n    // subreddits keyed by name\n    private val model = mutableMapOf<String, SubReddit>()\n    var failureMsg: String? = null\n    fun addPost(post: RedditPost) {\n        val subreddit = model.getOrPut(post.subreddit) {\n            SubReddit(items = arrayListOf())\n        }\n        subreddit.items.add(post)\n    }\n\n    private fun findPosts(\n            subreddit: String,\n            limit: Int,\n            after: String? = null,\n            before: String? = null\n    ): List<RedditApi.RedditChildrenResponse> {\n        // only support paging forward\n        if (before != null) return emptyList()\n\n        val subReddit = findSubReddit(subreddit)\n        val posts = subReddit.findPosts(limit, after)\n        return posts.map { RedditApi.RedditChildrenResponse(it.copy()) }\n    }\n\n    private fun findSubReddit(subreddit: String) =\n            model.getOrDefault(subreddit, SubReddit())\n\n    override suspend fun getTop(\n            @Path(\"subreddit\") subreddit: String,\n            @Query(\"limit\") limit: Int,\n            @Query(\"after\") after: String?,\n            @Query(\"before\") before: String?\n    ): RedditApi.ListingResponse {\n        failureMsg?.let {\n            throw IOException(it)\n        }\n        val items = findPosts(subreddit, limit, after, before)\n        val nextAfter = items.lastOrNull()?.data?.name\n        return RedditApi.ListingResponse(\n                RedditApi.ListingData(\n                        children = items,\n                        after = nextAfter,\n                        before = null\n                )\n        )\n    }\n\n    private class SubReddit(val items: MutableList<RedditPost> = arrayListOf()) {\n        fun findPosts(limit: Int, after: String?): List<RedditPost> {\n            if (after == null) {\n                return items.subList(0, min(items.size, limit))\n            }\n            val index = items.indexOfFirst { it.name == after }\n            if (index == -1) {\n                return emptyList()\n            }\n            val startPos = index + 1\n            return items.subList(startPos, min(items.size, startPos + limit))\n        }\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/src/test-common/java/com/android/example/paging/pagingwithnetwork/repository/FakeRedditApi.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/test-common/java/com/android/example/paging/pagingwithnetwork/repository/FakeRedditApi.kt	(date 1604315706000)
+@@ -18,8 +18,8 @@
+ 
+ import com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi
+ import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
+-import retrofit2.http.Path
+-import retrofit2.http.Query
++import retrofit2.Call
++import retrofit2.mock.Calls
+ import java.io.IOException
+ import kotlin.math.min
+ 
+@@ -37,15 +37,14 @@
+         subreddit.items.add(post)
+     }
+ 
++    fun clear() {
++        model.clear()
++    }
++
+     private fun findPosts(
+             subreddit: String,
+             limit: Int,
+-            after: String? = null,
+-            before: String? = null
+-    ): List<RedditApi.RedditChildrenResponse> {
+-        // only support paging forward
+-        if (before != null) return emptyList()
+-
++            after: String? = null): List<RedditApi.RedditChildrenResponse> {
+         val subReddit = findSubReddit(subreddit)
+         val posts = subReddit.findPosts(limit, after)
+         return posts.map { RedditApi.RedditChildrenResponse(it.copy()) }
+@@ -54,24 +53,42 @@
+     private fun findSubReddit(subreddit: String) =
+             model.getOrDefault(subreddit, SubReddit())
+ 
+-    override suspend fun getTop(
+-            @Path("subreddit") subreddit: String,
+-            @Query("limit") limit: Int,
+-            @Query("after") after: String?,
+-            @Query("before") before: String?
+-    ): RedditApi.ListingResponse {
++    override fun getTop(subreddit: String, limit: Int): Call<RedditApi.ListingResponse> {
++        failureMsg?.let {
++            return Calls.failure(IOException(it))
++        }
++        val items = findPosts(subreddit, limit)
++        val after = items.lastOrNull()?.data?.name
++        val response = RedditApi.ListingResponse(
++                RedditApi.ListingData(children = items,
++                        after = after,
++                        before = null
++                )
++        )
++        return Calls.response(response)
++    }
++
++    override fun getTopAfter(subreddit: String, after: String, limit: Int)
++            : Call<RedditApi.ListingResponse> {
+         failureMsg?.let {
+-            throw IOException(it)
++            return Calls.failure(IOException(it))
+         }
+-        val items = findPosts(subreddit, limit, after, before)
+-        val nextAfter = items.lastOrNull()?.data?.name
+-        return RedditApi.ListingResponse(
+-                RedditApi.ListingData(
+-                        children = items,
+-                        after = nextAfter,
++        val items = findPosts(subreddit = subreddit,
++                limit = limit,
++                after = after)
++        val responseAfter = items.lastOrNull()?.data?.name
++        val response = RedditApi.ListingResponse(
++                RedditApi.ListingData(children = items,
++                        after = responseAfter,
+                         before = null
+                 )
+         )
++        return Calls.response(response)
++    }
++
++    override fun getTopBefore(subreddit: String, before: String, limit: Int)
++            : Call<RedditApi.ListingResponse> {
++        TODO("the app never uses this so no reason to implement")
+     }
+ 
+     private class SubReddit(val items: MutableList<RedditPost> = arrayListOf()) {
+Index: ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/SubRedditViewModel.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.ui\n\nimport androidx.lifecycle.SavedStateHandle\nimport androidx.lifecycle.ViewModel\nimport androidx.lifecycle.asFlow\nimport androidx.lifecycle.viewModelScope\nimport androidx.paging.PagingData\nimport androidx.paging.cachedIn\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository\nimport com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost\nimport kotlinx.coroutines.ExperimentalCoroutinesApi\nimport kotlinx.coroutines.FlowPreview\nimport kotlinx.coroutines.channels.Channel\nimport kotlinx.coroutines.flow.*\n\nclass SubRedditViewModel(\n    private val repository: RedditPostRepository,\n    private val savedStateHandle: SavedStateHandle\n) : ViewModel() {\n    companion object {\n        const val KEY_SUBREDDIT = \"subreddit\"\n        const val DEFAULT_SUBREDDIT = \"androiddev\"\n    }\n\n    init {\n        if (!savedStateHandle.contains(KEY_SUBREDDIT)) {\n            savedStateHandle.set(KEY_SUBREDDIT, DEFAULT_SUBREDDIT)\n        }\n    }\n\n    private val clearListCh = Channel<Unit>(Channel.CONFLATED)\n\n    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)\n    val posts = flowOf(\n        clearListCh.receiveAsFlow().map { PagingData.empty<RedditPost>() },\n        savedStateHandle.getLiveData<String>(KEY_SUBREDDIT)\n            .asFlow()\n            .flatMapLatest { repository.postsOfSubreddit(it, 30) }\n            // cachedIn() shares the paging state across multiple consumers of posts,\n            // e.g. different generations of UI across rotation config change\n            .cachedIn(viewModelScope)\n    ).flattenMerge(2)\n\n    fun shouldShowSubreddit(\n        subreddit: String\n    ) = savedStateHandle.get<String>(KEY_SUBREDDIT) != subreddit\n\n    fun showSubreddit(subreddit: String) {\n        if (!shouldShowSubreddit(subreddit)) return\n\n        clearListCh.offer(Unit)\n\n        savedStateHandle.set(KEY_SUBREDDIT, subreddit)\n    }\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/SubRedditViewModel.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/lib/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ui/SubRedditViewModel.kt	(date 1604315706000)
+@@ -18,20 +18,13 @@
+ 
+ import androidx.lifecycle.SavedStateHandle
+ import androidx.lifecycle.ViewModel
+-import androidx.lifecycle.asFlow
+-import androidx.lifecycle.viewModelScope
+-import androidx.paging.PagingData
+-import androidx.paging.cachedIn
++import androidx.lifecycle.map
++import androidx.lifecycle.switchMap
+ import com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository
+-import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
+-import kotlinx.coroutines.ExperimentalCoroutinesApi
+-import kotlinx.coroutines.FlowPreview
+-import kotlinx.coroutines.channels.Channel
+-import kotlinx.coroutines.flow.*
+ 
+ class SubRedditViewModel(
+-    private val repository: RedditPostRepository,
+-    private val savedStateHandle: SavedStateHandle
++        private val repository: RedditPostRepository,
++        private val savedStateHandle: SavedStateHandle
+ ) : ViewModel() {
+     companion object {
+         const val KEY_SUBREDDIT = "subreddit"
+@@ -44,28 +37,27 @@
+         }
+     }
+ 
+-    private val clearListCh = Channel<Unit>(Channel.CONFLATED)
+-
+-    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+-    val posts = flowOf(
+-        clearListCh.receiveAsFlow().map { PagingData.empty<RedditPost>() },
+-        savedStateHandle.getLiveData<String>(KEY_SUBREDDIT)
+-            .asFlow()
+-            .flatMapLatest { repository.postsOfSubreddit(it, 30) }
+-            // cachedIn() shares the paging state across multiple consumers of posts,
+-            // e.g. different generations of UI across rotation config change
+-            .cachedIn(viewModelScope)
+-    ).flattenMerge(2)
++    private val repoResult = savedStateHandle.getLiveData<String>(KEY_SUBREDDIT).map {
++        repository.postsOfSubreddit(it, 30)
++    }
++    val posts = repoResult.switchMap { it.pagedList }
++    val networkState = repoResult.switchMap { it.networkState }
++    val refreshState = repoResult.switchMap { it.refreshState }
+ 
+-    fun shouldShowSubreddit(
+-        subreddit: String
+-    ) = savedStateHandle.get<String>(KEY_SUBREDDIT) != subreddit
++    fun refresh() {
++        repoResult.value?.refresh?.invoke()
++    }
+ 
+-    fun showSubreddit(subreddit: String) {
+-        if (!shouldShowSubreddit(subreddit)) return
+-
+-        clearListCh.offer(Unit)
+-
++    fun showSubreddit(subreddit: String): Boolean {
++        if (savedStateHandle.get<String>(KEY_SUBREDDIT) == subreddit) {
++            return false
++        }
+         savedStateHandle.set(KEY_SUBREDDIT, subreddit)
++        return true
++    }
++
++    fun retry() {
++        val listing = repoResult.value
++        listing?.retry?.invoke()
+     }
+ }
+Index: ../PagingWithNetworkSample/app/build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\napply plugin: 'com.android.application'\n\napply plugin: 'kotlin-android'\n\napply plugin: 'kotlin-android-extensions'\n\napply plugin: 'kotlin-kapt'\n\nandroid {\n    compileSdkVersion build_versions.compile_sdk\n    buildToolsVersion build_versions.build_tools\n    defaultConfig {\n        applicationId \"com.android.example.paging.pagingwithnetwork\"\n        minSdkVersion build_versions.min_sdk\n        targetSdkVersion build_versions.target_sdk\n        versionCode 1\n        versionName \"1.0\"\n        testInstrumentationRunner \"androidx.test.runner.AndroidJUnitRunner\"\n    }\n    buildTypes {\n        release {\n            minifyEnabled true\n            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'\n        }\n    }\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }\n    kotlinOptions {\n        jvmTarget = \"1.8\"\n        freeCompilerArgs += [\"-Xopt-in=kotlin.RequiresOptIn\"]\n    }\n    sourceSets {\n        androidTest.java.srcDirs += \"src/test-common/java\"\n        test.java.srcDirs += \"src/test-common/java\"\n    }\n}\n\n\ndependencies {\n    implementation fileTree(dir: 'libs', include: ['*.jar'])\n    implementation project(path: ':lib')\n\n    kapt deps.room.compiler\n    kapt deps.glide.compiler\n\n    implementation deps.constraint_layout\n    implementation deps.app_compat\n    implementation deps.fragment.runtime_ktx\n    implementation deps.recyclerview\n    implementation deps.cardview\n    implementation deps.material\n    implementation deps.room.runtime\n    implementation deps.room.ktx\n    implementation deps.lifecycle.livedata_ktx\n    implementation deps.lifecycle.runtime\n    implementation deps.paging_runtime\n    implementation deps.kotlin.stdlib\n    implementation deps.retrofit.runtime\n    implementation deps.retrofit.gson\n    implementation deps.okhttp_logging_interceptor\n    implementation deps.glide.runtime\n\n    // Android Testing Support Library's runner and rules\n    androidTestImplementation deps.atsl.core\n    androidTestImplementation deps.atsl.runner\n    androidTestImplementation deps.atsl.rules\n    androidTestImplementation deps.arch_core.testing\n\n    androidTestImplementation deps.junit\n    androidTestImplementation deps.retrofit.mock\n    androidTestImplementation deps.mockito.core\n    androidTestImplementation deps.mockito.android\n\n    testImplementation deps.junit\n    testImplementation deps.retrofit.mock\n    testImplementation deps.arch_core.testing\n    testImplementation deps.mockito.core\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/build.gradle	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/build.gradle	(date 1604315706000)
+@@ -45,7 +45,6 @@
+     }
+     kotlinOptions {
+         jvmTarget = "1.8"
+-        freeCompilerArgs += ["-Xopt-in=kotlin.RequiresOptIn"]
+     }
+     sourceSets {
+         androidTest.java.srcDirs += "src/test-common/java"
+@@ -68,10 +67,9 @@
+     implementation deps.cardview
+     implementation deps.material
+     implementation deps.room.runtime
+-    implementation deps.room.ktx
+     implementation deps.lifecycle.livedata_ktx
+     implementation deps.lifecycle.runtime
+-    implementation deps.paging_runtime
++    implementation deps.paging_ktx
+     implementation deps.kotlin.stdlib
+     implementation deps.retrofit.runtime
+     implementation deps.retrofit.gson
+Index: ../PagingWithNetworkSample/README.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+># Paging With Network Sample\n\nThis sample demonstrates how to use the Paging library with a backend API (in this\ncase [Reddit API][7]).\n\nThere are 3 variations of the demo, which you can select in the `MainActivity` class.\n\nAfter selecting an option, it starts the `RedditActivity` which is the activity that\nshows the list of posts in a given subreddit.\n\n## Paging With Database And Network\nThis sample, implemented in the [DbRedditPostRepository][1] class, demonstrates how to set up\na Repository that will use the local database to page in data for the UI and also back-fill\nthe database from the network as the user reaches to the end of the data in the database.\n\nIt uses `Room` to create the `PagingSource` ([dao][3]).  The `Pager` creates a stream of\ndata from the PagingSource to the UI, and more data is paged in as it is consumed.\n\nThis usually provides the best user experience as the cached content is always available\non the device and the user will still have a good experience even if the network is slow /\nunavailable.\n\n## Paging Using Item Keys\nThis sample, implemented in the [InMemoryByItemRepository][2] class, demonstrates how to\nset up a Repository that will directly page in from the network and will use the `key` from\nthe previous item to find the request parameters for the next page.\n\n[ItemKeyedSubredditPagingSource][4]: The data source that uses the `key` in items\n(`name` in Reddit API) to find the next page. It extends from the `PagingSource` class\nin the Paging Library.\n\n## Paging Using Next Tokens From The Previous Query\nThis sample, implemented in the [InMemoryByPageKeyRepository][5] class, demonstrates how to\nutilize the `before` and `after` keys in the response to discover the next page. (This is\nthe intended use of the Reddit API but this sample still provides\n[ItemKeyedSubredditPagingSource][4] to serve as an example if the backend does not provide\nbefore/after links)\n\n[PageKeyedSubredditPagingSource][6]: The data source that uses the `after` and `before` fields\nin the API request response. It extends from the `PagingSource` class in the Paging Library.\n\n\n### Libraries\n* [Android Support Library][support-lib]\n* [Android Architecture Components][arch]\n* [Retrofit][retrofit] for REST api communication\n* [Glide][glide] for image loading\n* [espresso][espresso] for UI tests\n* [mockito][mockito] for mocking in tests\n* [Retrofit Mock][retrofit-mock] for creating a fake API implementation for tests\n\n[1]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inDb/DbRedditPostRepository.kt\n[2]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/InMemoryByItemRepository.kt\n[3]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/RedditPostDao.kt\n[4]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/ItemKeyedSubredditPagingSource.kt\n[5]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/InMemoryByPageKeyRepository.kt\n[6]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/PageKeyedSubredditPagingSource.kt\n[7]: https://www.reddit.com/dev/api/#listings\n[mockwebserver]: https://github.com/square/okhttp/tree/master/mockwebserver\n[support-lib]: https://developer.android.com/topic/libraries/support-library/index.html\n[arch]: https://developer.android.com/arch\n[espresso]: https://google.github.io/android-testing-support-library/docs/espresso/\n[retrofit]: http://square.github.io/retrofit\n[glide]: https://github.com/bumptech/glide\n[mockito]: http://site.mockito.org\n[retrofit-mock]: https://github.com/square/retrofit/tree/master/retrofit-mock
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/README.md	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/README.md	(date 1604315706000)
+@@ -1,7 +1,7 @@
+ # Paging With Network Sample
+ 
+ This sample demonstrates how to use the Paging library with a backend API (in this
+-case [Reddit API][7]).
++case [Reddit API][8]).
+ 
+ There are 3 variations of the demo, which you can select in the `MainActivity` class.
+ 
+@@ -13,8 +13,9 @@
+ a Repository that will use the local database to page in data for the UI and also back-fill
+ the database from the network as the user reaches to the end of the data in the database.
+ 
+-It uses `Room` to create the `PagingSource` ([dao][3]).  The `Pager` creates a stream of
+-data from the PagingSource to the UI, and more data is paged in as it is consumed.
++It uses `Room` to create the `DataSource.Factory` ([dao][3]) and the Paging Boundary Callback
++API to get notified when the Paging library consumes the available local data ([boundary callback
++implementation][4])
+ 
+ This usually provides the best user experience as the cached content is always available
+ on the device and the user will still have a good experience even if the network is slow /
+@@ -25,19 +26,20 @@
+ set up a Repository that will directly page in from the network and will use the `key` from
+ the previous item to find the request parameters for the next page.
+ 
+-[ItemKeyedSubredditPagingSource][4]: The data source that uses the `key` in items
+-(`name` in Reddit API) to find the next page. It extends from the `PagingSource` class
++[ItemKeyedSubredditDataSource][5]: The data source that uses the `key` in items
++(`name` in Reddit API) to find the next page. It extends from the `ItemKeyedDataSource` class
+ in the Paging Library.
+ 
+ ## Paging Using Next Tokens From The Previous Query
+-This sample, implemented in the [InMemoryByPageKeyRepository][5] class, demonstrates how to
++This sample, implemented in the [InMemoryByPageKeyRepository][6] class, demonstrates how to
+ utilize the `before` and `after` keys in the response to discover the next page. (This is
+ the intended use of the Reddit API but this sample still provides
+-[ItemKeyedSubredditPagingSource][4] to serve as an example if the backend does not provide
++[ItemKeyedSubredditDataSource][5] to serve as an example if the backend does not provide
+ before/after links)
+ 
+-[PageKeyedSubredditPagingSource][6]: The data source that uses the `after` and `before` fields
+-in the API request response. It extends from the `PagingSource` class in the Paging Library.
++[PageKeyedSubredditDataSource][7]: The data source that uses the `after` and `before` fields
++in the API request response. It extends from the `PageKeyedDataSource` class
++in the Paging Library.
+ 
+ 
+ ### Libraries
+@@ -52,10 +54,11 @@
+ [1]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inDb/DbRedditPostRepository.kt
+ [2]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/InMemoryByItemRepository.kt
+ [3]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/db/RedditPostDao.kt
+-[4]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/ItemKeyedSubredditPagingSource.kt
+-[5]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/InMemoryByPageKeyRepository.kt
+-[6]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/PageKeyedSubredditPagingSource.kt
+-[7]: https://www.reddit.com/dev/api/#listings
++[4]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inDb/SubredditBoundaryCallback.kt
++[5]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byItem/ItemKeyedSubredditDataSource.kt
++[6]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/InMemoryByPageKeyRepository.kt
++[7]: app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/repository/inMemory/byPage/PageKeyedSubredditDataSource.kt
++[8]: https://www.reddit.com/dev/api/#listings
+ [mockwebserver]: https://github.com/square/okhttp/tree/master/mockwebserver
+ [support-lib]: https://developer.android.com/topic/libraries/support-library/index.html
+ [arch]: https://developer.android.com/arch
+Index: ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ServiceLocator.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit\n\nimport android.app.Application\nimport android.content.Context\nimport androidx.annotation.VisibleForTesting\nimport com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi\nimport com.android.example.paging.pagingwithnetwork.reddit.db.RedditDb\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.inDb.DbRedditPostRepository\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byItem.InMemoryByItemRepository\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byPage.InMemoryByPageKeyRepository\n\n/**\n * Super simplified service locator implementation to allow us to replace default implementations\n * for testing.\n */\ninterface ServiceLocator {\n    companion object {\n        private val LOCK = Any()\n        private var instance: ServiceLocator? = null\n        fun instance(context: Context): ServiceLocator {\n            synchronized(LOCK) {\n                if (instance == null) {\n                    instance = DefaultServiceLocator(\n                            app = context.applicationContext as Application,\n                            useInMemoryDb = false)\n                }\n                return instance!!\n            }\n        }\n\n        /**\n         * Allows tests to replace the default implementations.\n         */\n        @VisibleForTesting\n        fun swap(locator: ServiceLocator) {\n            instance = locator\n        }\n    }\n\n    fun getRepository(type: RedditPostRepository.Type): RedditPostRepository\n\n    fun getRedditApi(): RedditApi\n}\n\n/**\n * default implementation of ServiceLocator that uses production endpoints.\n */\nopen class DefaultServiceLocator(val app: Application, val useInMemoryDb: Boolean) : ServiceLocator {\n    private val db by lazy {\n        RedditDb.create(app, useInMemoryDb)\n    }\n\n    private val api by lazy {\n        RedditApi.create()\n    }\n\n    override fun getRepository(type: RedditPostRepository.Type): RedditPostRepository {\n        return when (type) {\n            RedditPostRepository.Type.IN_MEMORY_BY_ITEM -> InMemoryByItemRepository(\n                    redditApi = getRedditApi()\n            )\n            RedditPostRepository.Type.IN_MEMORY_BY_PAGE -> InMemoryByPageKeyRepository(\n                    redditApi = getRedditApi()\n            )\n            RedditPostRepository.Type.DB -> DbRedditPostRepository(\n                db = db,\n                redditApi = getRedditApi()\n            )\n        }\n    }\n\n    override fun getRedditApi(): RedditApi = api\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ServiceLocator.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/main/java/com/android/example/paging/pagingwithnetwork/reddit/ServiceLocator.kt	(date 1604315706000)
+@@ -25,6 +25,8 @@
+ import com.android.example.paging.pagingwithnetwork.reddit.repository.inDb.DbRedditPostRepository
+ import com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byItem.InMemoryByItemRepository
+ import com.android.example.paging.pagingwithnetwork.reddit.repository.inMemory.byPage.InMemoryByPageKeyRepository
++import java.util.concurrent.Executor
++import java.util.concurrent.Executors
+ 
+ /**
+  * Super simplified service locator implementation to allow us to replace default implementations
+@@ -56,6 +58,10 @@
+ 
+     fun getRepository(type: RedditPostRepository.Type): RedditPostRepository
+ 
++    fun getNetworkExecutor(): Executor
++
++    fun getDiskIOExecutor(): Executor
++
+     fun getRedditApi(): RedditApi
+ }
+ 
+@@ -63,6 +69,14 @@
+  * default implementation of ServiceLocator that uses production endpoints.
+  */
+ open class DefaultServiceLocator(val app: Application, val useInMemoryDb: Boolean) : ServiceLocator {
++    // thread pool used for disk access
++    @Suppress("PrivatePropertyName")
++    private val DISK_IO = Executors.newSingleThreadExecutor()
++
++    // thread pool used for network requests
++    @Suppress("PrivatePropertyName")
++    private val NETWORK_IO = Executors.newFixedThreadPool(5)
++
+     private val db by lazy {
+         RedditDb.create(app, useInMemoryDb)
+     }
+@@ -74,17 +88,21 @@
+     override fun getRepository(type: RedditPostRepository.Type): RedditPostRepository {
+         return when (type) {
+             RedditPostRepository.Type.IN_MEMORY_BY_ITEM -> InMemoryByItemRepository(
+-                    redditApi = getRedditApi()
+-            )
++                    redditApi = getRedditApi(),
++                    networkExecutor = getNetworkExecutor())
+             RedditPostRepository.Type.IN_MEMORY_BY_PAGE -> InMemoryByPageKeyRepository(
+-                    redditApi = getRedditApi()
+-            )
++                    redditApi = getRedditApi(),
++                    networkExecutor = getNetworkExecutor())
+             RedditPostRepository.Type.DB -> DbRedditPostRepository(
+-                db = db,
+-                redditApi = getRedditApi()
+-            )
++                    db = db,
++                    redditApi = getRedditApi(),
++                    ioExecutor = getDiskIOExecutor())
+         }
+     }
++
++    override fun getNetworkExecutor(): Executor = NETWORK_IO
++
++    override fun getDiskIOExecutor(): Executor = DISK_IO
+ 
+     override fun getRedditApi(): RedditApi = api
+ }
+\ No newline at end of file
+Index: ../PagingWithNetworkSample/gradle/wrapper/gradle-wrapper.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>#\n# Copyright (C) 2018 The Android Open Source Project\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#      http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n#\n\n#Thu Feb 22 10:53:38 GMT 2018\ndistributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-6.3-all.zip\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/gradle/wrapper/gradle-wrapper.properties	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/gradle/wrapper/gradle-wrapper.properties	(date 1604315706000)
+@@ -14,9 +14,9 @@
+ # limitations under the License.
+ #
+ 
+-#Thu Feb 22 10:53:38 GMT 2018
++#Sun Feb 09 21:21:32 PST 2020
+ distributionBase=GRADLE_USER_HOME
+ distributionPath=wrapper/dists
+ zipStoreBase=GRADLE_USER_HOME
+ zipStorePath=wrapper/dists
+-distributionUrl=https\://services.gradle.org/distributions/gradle-6.3-all.zip
++distributionUrl=https\://services.gradle.org/distributions/gradle-5.6.4-all.zip
+Index: ../PagingWithNetworkSample/app/src/androidTest/java/com/android/example/paging/pagingwithnetwork/reddit/ui/RedditActivityTest.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright (C) 2017 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage com.android.example.paging.pagingwithnetwork.reddit.ui\n\nimport android.app.Application\nimport android.content.Intent\nimport androidx.arch.core.executor.testing.CountingTaskExecutorRule\nimport androidx.recyclerview.widget.RecyclerView\nimport androidx.test.core.app.ApplicationProvider\nimport androidx.test.platform.app.InstrumentationRegistry\nimport com.android.example.paging.pagingwithnetwork.R\nimport com.android.example.paging.pagingwithnetwork.reddit.DefaultServiceLocator\nimport com.android.example.paging.pagingwithnetwork.reddit.ServiceLocator\nimport com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository.Type.IN_MEMORY_BY_ITEM\nimport com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository.Type.IN_MEMORY_BY_PAGE\nimport com.android.example.paging.pagingwithnetwork.reddit.ui.SubRedditViewModel.Companion.DEFAULT_SUBREDDIT\nimport com.android.example.paging.pagingwithnetwork.repository.FakeRedditApi\nimport com.android.example.paging.pagingwithnetwork.repository.PostFactory\nimport org.hamcrest.CoreMatchers.`is`\nimport org.hamcrest.CoreMatchers.notNullValue\nimport org.hamcrest.MatcherAssert.assertThat\nimport org.junit.Before\nimport org.junit.Rule\nimport org.junit.Test\nimport org.junit.runner.RunWith\nimport org.junit.runners.Parameterized\nimport java.util.concurrent.CountDownLatch\nimport java.util.concurrent.TimeUnit\nimport java.util.concurrent.TimeoutException\n\n/**\n * Simple sanity test to ensure data is displayed\n */\n@RunWith(Parameterized::class)\nclass RedditActivityTest(private val type: RedditPostRepository.Type) {\n    companion object {\n        @JvmStatic\n        @Parameterized.Parameters(name = \"{0}\")\n        fun params() = arrayOf(IN_MEMORY_BY_ITEM, IN_MEMORY_BY_PAGE)\n    }\n\n    @get:Rule\n    var testRule = CountingTaskExecutorRule()\n\n    private val postFactory = PostFactory()\n    @Before\n    fun init() {\n        val fakeApi = FakeRedditApi()\n        fakeApi.addPost(postFactory.createRedditPost(DEFAULT_SUBREDDIT))\n        fakeApi.addPost(postFactory.createRedditPost(DEFAULT_SUBREDDIT))\n        fakeApi.addPost(postFactory.createRedditPost(DEFAULT_SUBREDDIT))\n        val app = ApplicationProvider.getApplicationContext<Application>()\n        // use a controlled service locator w/ fake API\n        ServiceLocator.swap(\n                object : DefaultServiceLocator(app = app, useInMemoryDb = true) {\n                    override fun getRedditApi(): RedditApi = fakeApi\n                }\n        )\n    }\n\n    @Test\n    @Throws(InterruptedException::class, TimeoutException::class)\n    fun showSomeResults() {\n        val intent = RedditActivity.intentFor(\n                context = ApplicationProvider.getApplicationContext(),\n                type = type\n        )\n        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)\n        val activity = InstrumentationRegistry.getInstrumentation().startActivitySync(intent)\n        val recyclerView = activity.findViewById<RecyclerView>(R.id.list)\n        assertThat(recyclerView.adapter, notNullValue())\n        waitForAdapterChange(recyclerView)\n        assertThat(recyclerView.adapter?.itemCount, `is`(3))\n    }\n\n    private fun waitForAdapterChange(recyclerView: RecyclerView) {\n        val latch = CountDownLatch(1)\n        InstrumentationRegistry.getInstrumentation().runOnMainSync {\n            recyclerView.adapter?.registerAdapterDataObserver(\n                    object : RecyclerView.AdapterDataObserver() {\n                        override fun onChanged() {\n                            latch.countDown()\n                        }\n\n                        override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {\n                            latch.countDown()\n                        }\n                    })\n        }\n        testRule.drainTasks(1, TimeUnit.SECONDS)\n        if (recyclerView.adapter?.itemCount ?: 0 > 0) {\n            return\n        }\n        assertThat(latch.await(10, TimeUnit.SECONDS), `is`(true))\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/app/src/androidTest/java/com/android/example/paging/pagingwithnetwork/reddit/ui/RedditActivityTest.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/app/src/androidTest/java/com/android/example/paging/pagingwithnetwork/reddit/ui/RedditActivityTest.kt	(date 1604315706000)
+@@ -27,8 +27,6 @@
+ import com.android.example.paging.pagingwithnetwork.reddit.ServiceLocator
+ import com.android.example.paging.pagingwithnetwork.reddit.api.RedditApi
+ import com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository
+-import com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository.Type.IN_MEMORY_BY_ITEM
+-import com.android.example.paging.pagingwithnetwork.reddit.repository.RedditPostRepository.Type.IN_MEMORY_BY_PAGE
+ import com.android.example.paging.pagingwithnetwork.reddit.ui.SubRedditViewModel.Companion.DEFAULT_SUBREDDIT
+ import com.android.example.paging.pagingwithnetwork.repository.FakeRedditApi
+ import com.android.example.paging.pagingwithnetwork.repository.PostFactory
+@@ -52,7 +50,7 @@
+     companion object {
+         @JvmStatic
+         @Parameterized.Parameters(name = "{0}")
+-        fun params() = arrayOf(IN_MEMORY_BY_ITEM, IN_MEMORY_BY_PAGE)
++        fun params() = RedditPostRepository.Type.values()
+     }
+ 
+     @get:Rule
+@@ -68,7 +66,8 @@
+         val app = ApplicationProvider.getApplicationContext<Application>()
+         // use a controlled service locator w/ fake API
+         ServiceLocator.swap(
+-                object : DefaultServiceLocator(app = app, useInMemoryDb = true) {
++                object : DefaultServiceLocator(app = app,
++                        useInMemoryDb = true) {
+                     override fun getRedditApi(): RedditApi = fakeApi
+                 }
+         )
+@@ -79,8 +78,7 @@
+     fun showSomeResults() {
+         val intent = RedditActivity.intentFor(
+                 context = ApplicationProvider.getApplicationContext(),
+-                type = type
+-        )
++                type = type)
+         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+         val activity = InstrumentationRegistry.getInstrumentation().startActivitySync(intent)
+         val recyclerView = activity.findViewById<RecyclerView>(R.id.list)
+Index: ../PagingWithNetworkSample/benchmark/build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>apply plugin: 'com.android.library'\n\napply plugin: 'kotlin-android'\n\napply plugin: 'kotlin-android-extensions'\n\napply plugin: 'kotlin-kapt'\n\napply plugin: 'androidx.benchmark'\n\nandroid {\n    compileSdkVersion build_versions.compile_sdk\n    buildToolsVersion build_versions.build_tools\n    defaultConfig {\n        multiDexEnabled true\n        minSdkVersion build_versions.min_sdk\n        targetSdkVersion build_versions.target_sdk\n        versionCode 1\n        versionName \"1.0\"\n\n        // Set this argument to capture profiling information, instead of measuring performance.\n        // Can be one of:\n        //   * None\n        //   * Sampled\n        //   * Method\n        // See full descriptions of available options at: d.android.com/benchmark#profiling\n        testInstrumentationRunnerArgument 'androidx.benchmark.profiling.mode', 'none'\n    }\n\n    testBuildType = \"release\"\n\n    buildTypes {\n        release {\n            isDefault = true\n            minifyEnabled true\n            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'benchmark-proguard-rules.pro'\n            signingConfig signingConfigs.debug\n        }\n    }\n\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }\n\n\n    kotlinOptions {\n        jvmTarget = \"1.8\"\n        freeCompilerArgs += [\"-Xopt-in=kotlin.RequiresOptIn\"]\n    }\n}\n\ndependencies {\n    implementation fileTree(dir: 'libs', include: ['*.jar'])\n    implementation project(path: ':lib')\n\n    implementation deps.app_compat\n    implementation deps.paging_runtime\n\n    androidTestImplementation deps.atsl.ext_junit\n    androidTestImplementation deps.atsl.runner\n    androidTestImplementation deps.atsl.rules\n    androidTestImplementation deps.arch_core.testing\n    androidTestImplementation deps.benchmark\n    androidTestImplementation deps.junit\n}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/benchmark/build.gradle	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/benchmark/build.gradle	(date 1604315706000)
+@@ -17,14 +17,7 @@
+         targetSdkVersion build_versions.target_sdk
+         versionCode 1
+         versionName "1.0"
+-
+-        // Set this argument to capture profiling information, instead of measuring performance.
+-        // Can be one of:
+-        //   * None
+-        //   * Sampled
+-        //   * Method
+-        // See full descriptions of available options at: d.android.com/benchmark#profiling
+-        testInstrumentationRunnerArgument 'androidx.benchmark.profiling.mode', 'none'
++        testInstrumentationRunner "androidx.benchmark.junit4.AndroidBenchmarkRunner"
+     }
+ 
+     testBuildType = "release"
+@@ -38,15 +31,8 @@
+         }
+     }
+ 
+-    compileOptions {
+-        sourceCompatibility JavaVersion.VERSION_1_8
+-        targetCompatibility JavaVersion.VERSION_1_8
+-    }
+-
+-
+     kotlinOptions {
+         jvmTarget = "1.8"
+-        freeCompilerArgs += ["-Xopt-in=kotlin.RequiresOptIn"]
+     }
+ }
+ 
+@@ -55,7 +41,7 @@
+     implementation project(path: ':lib')
+ 
+     implementation deps.app_compat
+-    implementation deps.paging_runtime
++    implementation deps.paging_ktx
+ 
+     androidTestImplementation deps.atsl.ext_junit
+     androidTestImplementation deps.atsl.runner
+Index: ../PagingWithNetworkSample/benchmark/src/androidTest/java/com/example/benchmark/BenchmarkActivity.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>/*\n * Copyright 2019 The Android Open Source Project\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n * You may obtain a copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\npackage com.example.benchmark\n\nimport android.os.Bundle\nimport androidx.appcompat.app.AppCompatActivity\nimport androidx.lifecycle.lifecycleScope\nimport androidx.paging.Pager\nimport androidx.paging.PagingConfig\nimport androidx.paging.PagingSource\nimport com.android.example.paging.pagingwithnetwork.GlideApp\nimport com.android.example.paging.pagingwithnetwork.reddit.ui.PostsAdapter\nimport com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost\nimport kotlinx.android.synthetic.main.activity_benchmark.*\nimport kotlinx.coroutines.ExperimentalCoroutinesApi\nimport kotlinx.coroutines.flow.collectLatest\nimport kotlinx.coroutines.launch\n\nclass BenchmarkActivity : AppCompatActivity() {\n    val testExecutor = TestExecutor()\n\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        setContentView(R.layout.activity_benchmark)\n\n        val glide = GlideApp.with(this)\n        val adapter = PostsAdapter(glide)\n        list.adapter = adapter\n\n        val config = PagingConfig(\n            pageSize = 5,\n            initialLoadSize = 5\n        )\n\n        val pager = Pager(config, 0) {\n            MockPagingSource()\n        }\n\n        lifecycleScope.launch {\n            @OptIn(ExperimentalCoroutinesApi::class)\n            pager.flow.collectLatest {\n                adapter.submitData(it)\n            }\n        }\n    }\n}\n\nclass MockPagingSource : PagingSource<Int, RedditPost>() {\n    private fun generatePost(): RedditPost {\n        val title = List(10) { (0..100).random() }.joinToString(\"\")\n        return RedditPost(\"name\", title, 1, \"author\", \"androiddev\", 0, System.currentTimeMillis(), null, null)\n    }\n\n    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, RedditPost> {\n        val key = params.key ?: 0\n        return LoadResult.Page(List(200) { generatePost() }.toList(), key - 1, key + 1)\n    }\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ../PagingWithNetworkSample/benchmark/src/androidTest/java/com/example/benchmark/BenchmarkActivity.kt	(revision 6625dd59615eb6ee233032906c0df18f7683ccf1)
++++ ../PagingWithNetworkSample/benchmark/src/androidTest/java/com/example/benchmark/BenchmarkActivity.kt	(date 1604315706000)
+@@ -17,17 +17,13 @@
+ 
+ import android.os.Bundle
+ import androidx.appcompat.app.AppCompatActivity
+-import androidx.lifecycle.lifecycleScope
+-import androidx.paging.Pager
+-import androidx.paging.PagingConfig
+-import androidx.paging.PagingSource
++import androidx.paging.PageKeyedDataSource
++import androidx.paging.PagedList
+ import com.android.example.paging.pagingwithnetwork.GlideApp
++import com.android.example.paging.pagingwithnetwork.reddit.repository.NetworkState
+ import com.android.example.paging.pagingwithnetwork.reddit.ui.PostsAdapter
+ import com.android.example.paging.pagingwithnetwork.reddit.vo.RedditPost
+ import kotlinx.android.synthetic.main.activity_benchmark.*
+-import kotlinx.coroutines.ExperimentalCoroutinesApi
+-import kotlinx.coroutines.flow.collectLatest
+-import kotlinx.coroutines.launch
+ 
+ class BenchmarkActivity : AppCompatActivity() {
+     val testExecutor = TestExecutor()
+@@ -37,35 +33,40 @@
+         setContentView(R.layout.activity_benchmark)
+ 
+         val glide = GlideApp.with(this)
+-        val adapter = PostsAdapter(glide)
++        val adapter = PostsAdapter(glide) {}
+         list.adapter = adapter
+ 
+-        val config = PagingConfig(
+-            pageSize = 5,
+-            initialLoadSize = 5
+-        )
++        val config = PagedList.Config.Builder()
++                .setInitialLoadSizeHint(5)
++                .setPageSize(5)
++                .build()
++
++        val pagedStrings: PagedList<RedditPost> = PagedList.Builder<Int, RedditPost>(MockDataSource(), config)
++                .setInitialKey(0)
++                .setFetchExecutor(testExecutor)
++                .setNotifyExecutor(testExecutor)
++                .build()
+ 
+-        val pager = Pager(config, 0) {
+-            MockPagingSource()
+-        }
++        adapter.submitList(pagedStrings)
++        adapter.setNetworkState(NetworkState.LOADED)
++    }
++}
+ 
+-        lifecycleScope.launch {
+-            @OptIn(ExperimentalCoroutinesApi::class)
+-            pager.flow.collectLatest {
+-                adapter.submitData(it)
+-            }
+-        }
++class MockDataSource : PageKeyedDataSource<Int, RedditPost>() {
++    override fun loadInitial(params: LoadInitialParams<Int>, callback: LoadInitialCallback<Int, RedditPost>) {
++        callback.onResult(List(200) { generatePost() }.toList(), -1, 1)
++    }
++
++    override fun loadAfter(params: LoadParams<Int>, callback: LoadCallback<Int, RedditPost>) {
++        callback.onResult(List(200) { generatePost() }.toList(), params.key + 1)
++    }
++
++    override fun loadBefore(params: LoadParams<Int>, callback: LoadCallback<Int, RedditPost>) {
++        callback.onResult(List(200) { generatePost() }.toList(), params.key - 1)
+     }
+-}
+ 
+-class MockPagingSource : PagingSource<Int, RedditPost>() {
+     private fun generatePost(): RedditPost {
+         val title = List(10) { (0..100).random() }.joinToString("")
+         return RedditPost("name", title, 1, "author", "androiddev", 0, System.currentTimeMillis(), null, null)
+     }
+-
+-    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, RedditPost> {
+-        val key = params.key ?: 0
+-        return LoadResult.Page(List(200) { generatePost() }.toList(), key - 1, key + 1)
+-    }
+ }
+\ No newline at end of file
