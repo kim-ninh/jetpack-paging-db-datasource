@@ -21,11 +21,6 @@ class CheesePositionalDataSource(
         db.invalidationTracker.addWeakObserver(observer)
     }
 
-    override fun isInvalid(): Boolean {
-        db.invalidationTracker.refreshVersionsSync()
-        return super.isInvalid()
-    }
-
     override fun loadInitial(params: LoadInitialParams, callback: LoadInitialCallback<Cheese>) {
         val totalCount = db.cheeseDao().countTotal()
         val loadPosition = computeInitialLoadPosition(params, totalCount)

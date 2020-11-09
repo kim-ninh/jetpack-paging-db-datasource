@@ -18,9 +18,7 @@ package paging.android.example.com.pagingsample
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import androidx.paging.Config
-import androidx.paging.DataSource
-import androidx.paging.toLiveData
+import androidx.paging.*
 
 /**
  * A simple ViewModel that provides a paged list of delicious Cheeses.
@@ -33,7 +31,19 @@ class CheeseViewModel(app: Application) : AndroidViewModel(app) {
      * We use -ktx Kotlin extension functions here, otherwise you would use LivePagedListBuilder(),
      * and PagedList.Config.Builder()
      */
-    val allCheeses1 = dao.allCheesesByName().toLiveData(Config(
+    val allCheesesFlow = Pager(
+            PagingConfig(
+
+            /**
+             * A good page size is a value that fills at least a screen worth of content on a large
+             * device so the User is unlikely to see a null item.
+             * You can play with this constant to observe the paging behavior.
+             * <p>
+             * It's possible to vary this with list device size, but often unnecessary, unless a
+             * user scrolling on a large device is expected to scroll through items more quickly
+             * than a small device, such as when the large device uses a grid layout of items.
+             */
+
             /**
              * A good page size is a value that fills at least a screen worth of content on a large
              * device so the User is unlikely to see a null item.
@@ -53,6 +63,15 @@ class CheeseViewModel(app: Application) : AndroidViewModel(app) {
              * loaded, the scrollbars will jitter as new pages are loaded. You should probably
              * disable scrollbars if you disable placeholders.
              */
+
+            /**
+             * If placeholders are enabled, PagedList will report the full size but some items might
+             * be null in onBind method (PagedListAdapter triggers a rebind when data is loaded).
+             * <p>
+             * If placeholders are disabled, onBind will never receive null but as more pages are
+             * loaded, the scrollbars will jitter as new pages are loaded. You should probably
+             * disable scrollbars if you disable placeholders.
+             */
             enablePlaceholders = true,
 
             /**
@@ -60,26 +79,49 @@ class CheeseViewModel(app: Application) : AndroidViewModel(app) {
              * <p>
              * This number triggers the PagedList to start dropping distant pages as more are loaded.
              */
-            maxSize = 200))
 
-    val allCheeses2 = object : DataSource.Factory<String, Cheese>() {
-        override fun create(): DataSource<String, Cheese> {
-            return CheeseItemKeyedDataSource(db)
-        }
-    }.toLiveData(Config(
-            initialLoadSizeHint = 30,
-            pageSize = 15,
-            enablePlaceholders = false
-    ))
+            /**
+             * Maximum number of items a PagedList should hold in memory at once.
+             * <p>
+             * This number triggers the PagedList to start dropping distant pages as more are loaded.
+             */
+            maxSize = 200)){
+        dao.allCheesesByName()
+    }.flow
 
-    val allCheeses = object : DataSource.Factory<Int, Cheese>() {
-        override fun create(): DataSource<Int, Cheese> {
-            return CheesePositionalDataSource(db)
-        }
-    }.toLiveData(Config(
-            pageSize = 30,
-            enablePlaceholders = true
-    ))
+    val allCheesesLiveData = Pager(
+            PagingConfig(
+                    pageSize = 60,
+                    enablePlaceholders = true,
+                    maxSize = 200
+            )
+    ){
+        dao.allCheesesByName()
+    }.liveData
+
+
+    val allCheeses2 = Pager(
+            PagingConfig(
+                    pageSize = 15,
+                    enablePlaceholders = false
+            )
+    ){
+        CheeseItemKeyedPagingSource(db)
+    }.liveData
+
+
+    val allCheeses = Pager(
+            PagingConfig(
+                    pageSize = 30,
+                    enablePlaceholders = true
+            )
+    ){
+        object : DataSource.Factory<Int, Cheese>() {
+            override fun create(): DataSource<Int, Cheese> {
+                return CheesePositionalDataSource(db)
+            }
+        }.asPagingSourceFactory().invoke()
+    }.liveData
 
     fun insert(text: CharSequence) = ioThread {
         dao.insert(Cheese(id = 0, name = text.toString()))

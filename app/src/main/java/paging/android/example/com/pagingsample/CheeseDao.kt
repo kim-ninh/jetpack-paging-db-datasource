@@ -17,7 +17,7 @@
 package paging.android.example.com.pagingsample
 
 import androidx.lifecycle.LiveData
-import androidx.paging.DataSource
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
@@ -33,7 +33,7 @@ interface CheeseDao {
      * it back to UI via ViewModel.
      */
     @Query("SELECT * FROM Cheese ORDER BY name COLLATE NOCASE ASC")
-    fun allCheesesByName(): DataSource.Factory<Int, Cheese>
+    fun allCheesesByName(): PagingSource<Int, Cheese>
 
     @Query("SELECT * FROM Cheese WHERE name > :lastName ORDER BY name COLLATE NOCASE ASC LIMIT :total")
     fun allCheesesByName(total: Int, lastName: String): List<Cheese>
