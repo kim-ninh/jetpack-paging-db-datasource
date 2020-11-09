@@ -16,6 +16,7 @@
 
 package paging.android.example.com.pagingsample
 
+import androidx.lifecycle.LiveData
 import androidx.paging.DataSource
 import androidx.room.Dao
 import androidx.room.Delete
@@ -39,6 +40,15 @@ interface CheeseDao {
 
     @Query("SELECT * FROM Cheese ORDER BY name COLLATE NOCASE ASC LIMIT :total")
     fun allCheesesByName(total: Int): List<Cheese>
+
+    @Query("SELECT * FROM Cheese")
+    fun allCheeses(): LiveData<List<Cheese>>
+
+    @Query("SELECT COUNT(*) FROM cheese")
+    fun countTotal(): Int
+
+    @Query("SELECT * FROM Cheese ORDER BY name ASC LIMIT :size OFFSET :offset")
+    fun allCheesesByName(offset: Int, size: Int): List<Cheese>
 
     @Insert
     fun insert(cheeses: List<Cheese>)

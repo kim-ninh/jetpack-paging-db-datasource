@@ -62,7 +62,7 @@ class CheeseViewModel(app: Application) : AndroidViewModel(app) {
              */
             maxSize = 200))
 
-    val allCheeses = object : DataSource.Factory<String, Cheese>() {
+    val allCheeses2 = object : DataSource.Factory<String, Cheese>() {
         override fun create(): DataSource<String, Cheese> {
             return CheeseItemKeyedDataSource(db)
         }
@@ -70,6 +70,15 @@ class CheeseViewModel(app: Application) : AndroidViewModel(app) {
             initialLoadSizeHint = 30,
             pageSize = 15,
             enablePlaceholders = false
+    ))
+
+    val allCheeses = object : DataSource.Factory<Int, Cheese>() {
+        override fun create(): DataSource<Int, Cheese> {
+            return CheesePositionalDataSource(db)
+        }
+    }.toLiveData(Config(
+            pageSize = 30,
+            enablePlaceholders = true
     ))
 
     fun insert(text: CharSequence) = ioThread {
