@@ -44,6 +44,18 @@ interface CheeseDao {
     @Query("SELECT * FROM Cheese")
     fun allCheeses(): LiveData<List<Cheese>>
 
+    @Query("SELECT * FROM Cheese WHERE id > :lastId ORDER BY id ASC LIMIT :total")
+    fun allCheesesByIdAfter(total: Int, lastId: Int): List<Cheese>
+
+    @Query("SELECT * FROM (SELECT * FROM Cheese WHERE id < :firstId ORDER BY id DESC LIMIT :total) ORDER BY id ASC")
+    fun allCheesesByIdBefore(total: Int, firstId: Int): List<Cheese>
+
+    @Query("SELECT * FROM Cheese ORDER BY id ASC LIMIT :total")
+    fun allCheesesById(total: Int): List<Cheese>
+
+    @Query("SELECT COUNT(*) FROM CHEESE WHERE id < :firstId")
+    fun totalBeforeId(firstId: Int): Int
+
     @Query("SELECT COUNT(*) FROM cheese")
     fun countTotal(): Int
 

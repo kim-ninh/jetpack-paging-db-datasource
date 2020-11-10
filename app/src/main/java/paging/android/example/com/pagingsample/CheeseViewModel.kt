@@ -62,17 +62,17 @@ class CheeseViewModel(app: Application) : AndroidViewModel(app) {
              */
             maxSize = 200))
 
-    val allCheeses2 = object : DataSource.Factory<String, Cheese>() {
-        override fun create(): DataSource<String, Cheese> {
+    val allCheeses = object : DataSource.Factory<Int, Cheese>() {
+        override fun create(): DataSource<Int, Cheese> {
             return CheeseItemKeyedDataSource(db)
         }
     }.toLiveData(Config(
-            initialLoadSizeHint = 30,
-            pageSize = 15,
+//            initialLoadSizeHint = 30,
+            pageSize = 30,
             enablePlaceholders = false
     ))
 
-    val allCheeses = object : DataSource.Factory<Int, Cheese>() {
+    val allCheeses3 = object : DataSource.Factory<Int, Cheese>() {
         override fun create(): DataSource<Int, Cheese> {
             return CheesePositionalDataSource(db)
         }
